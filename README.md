@@ -138,6 +138,11 @@ GET_URIRUN_INSTALL_MODE=local-repo python scripts/run_tests.py tests/test_get_ur
 
 Architecture and flow diagrams: [docs/multiplatform-e2e-design.md](docs/multiplatform-e2e-design.md).
 
+## Documentation
+
+- **[docs/IMPLEMENTED.md](docs/IMPLEMENTED.md)** - Detailed description of implemented test areas, platform coverage, environment variables, and reports
+- **[docs/TODO.md](docs/TODO.md)** - Structured plan for remaining work, critical TODOs, and external blockers
+
 ## Self-Hosted Runners
 
 Self-hosted runner setup guides:

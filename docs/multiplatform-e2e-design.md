@@ -175,3 +175,8 @@ Diagnostic test outputs:
   explicitly provides credentials and approval.
 - Local `get-urirun-com` dev serving is reported as an integration point when
   the repository does not expose a generic static server contract.
+
+## Additional Documentation
+
+- **[IMPLEMENTED.md](IMPLEMENTED.md)** - Detailed description of what has been implemented in the test harness
+- **[TODO.md](TODO.md)** - Structured plan for remaining work and future improvements
