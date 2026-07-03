@@ -58,6 +58,30 @@ def wait_for_port(host: str, port: int, *, timeout: float = 20.0) -> None:
     raise TimeoutError(f"port did not open: {host}:{port}; last error: {last_error}")
 
 
+def wait_for_port_or_process(host: str, port: int, managed: "ManagedProcess", *, timeout: float = 60.0) -> None:
+    deadline = time.monotonic() + timeout
+    last_error: OSError | None = None
+    while time.monotonic() < deadline:
+        return_code = managed.process.poll()
+        if return_code is not None:
+            logs = managed.read_logs()
+            raise RuntimeError(
+                f"{managed.name} exited before opening {host}:{port}; "
+                f"exit_code={return_code}; stdout={logs['stdout'][-4000:]}; stderr={logs['stderr'][-4000:]}"
+            )
+        try:
+            with socket.create_connection((host, port), timeout=0.5):
+                return
+        except OSError as exc:
+            last_error = exc
+            time.sleep(0.25)
+    logs = managed.read_logs()
+    raise TimeoutError(
+        f"port did not open: {host}:{port}; last error: {last_error}; "
+        f"stdout={logs['stdout'][-4000:]}; stderr={logs['stderr'][-4000:]}"
+    )
+
+
 @dataclass
 class ManagedProcess:
     name: str

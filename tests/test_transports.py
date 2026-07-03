@@ -8,7 +8,7 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import command_path, run_cmd, urirun_version
-from tests.process_utils import free_tcp_port, run_client, start_process, transport_env, wait_for_port, write_transport_report
+from tests.process_utils import free_tcp_port, run_client, start_process, transport_env, wait_for_port_or_process, write_transport_report
 
 
 def _policy_file(tmp_path: Path) -> Path:
@@ -42,7 +42,7 @@ def test_http_node_transport_run_roundtrip(registry_path, tmp_path):
     server = start_process("transport-http-node", server_command)
     client_result = None
     try:
-        wait_for_port(host, port, timeout=25)
+        wait_for_port_or_process(host, port, server, timeout=60)
         health = urllib.request.urlopen(f"http://{host}:{port}/health", timeout=5)
         assert health.status == 200
         body = json.dumps({
@@ -181,7 +181,7 @@ def test_grpc_transport_run_roundtrip(registry_path, tmp_path):
     )
     client_result = None
     try:
-        wait_for_port(host, port, timeout=25)
+        wait_for_port_or_process(host, port, server, timeout=60)
         env = transport_env({"URI_GRPC_MAP": json.dumps({"local": f"{host}:{port}"})})
         client_result = run_client(client_command, env=env, timeout=30)
         assert client_result.returncode == 0
