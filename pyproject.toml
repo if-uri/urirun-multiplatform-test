@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "urirun-multiplatform-test"
+version = "0.1.0"
+description = "Black-box multiplatform E2E tests for urirun"
+requires-python = ">=3.10"
+dependencies = [
+  "pytest>=7",
+]
+
+[tool.setuptools]
+py-modules = []
+
+[tool.pytest.ini_options]
+addopts = "-ra --strict-markers"
+testpaths = ["tests"]
+markers = [
+  "stable: core tests expected to pass on Linux, Windows, and macOS runners",
+  "experimental: useful coverage for surfaces that may still change",
+  "expected_failure: documented gap or unstable behavior, usually paired with xfail",
+]

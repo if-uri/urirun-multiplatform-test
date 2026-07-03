@@ -1,0 +1,98 @@
+name: urirun multiplatform e2e
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      urirun_repo_url:
+        description: "Repository URL to test"
+        required: false
+        default: "https://github.com/if-uri/urirun.git"
+      urirun_ref:
+        description: "Git ref to test"
+        required: false
+        default: "main"
+
+jobs:
+  e2e:
+    name: ${{ matrix.profile }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            profile: linux-docker
+          - os: windows-latest
+            profile: windows-runner
+          - os: macos-latest
+            profile: macos-runner
+
+    env:
+      URIRUN_REPO_URL: ${{ github.event.inputs.urirun_repo_url || 'https://github.com/if-uri/urirun.git' }}
+      URIRUN_REF: ${{ github.event.inputs.urirun_ref || 'main' }}
+      URIRUN_TEST_PROFILE: ${{ matrix.profile }}
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+
+    steps:
+      - name: Checkout test repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run Linux Docker profile
+        if: matrix.profile == 'linux-docker'
+        shell: bash
+        run: |
+          docker build -t urirun-linux-test -f docker/linux/Dockerfile .
+          docker run --rm \
+            -v "${{ github.workspace }}/reports:/workspace/reports" \
+            -e URIRUN_REPO_URL="$URIRUN_REPO_URL" \
+            -e URIRUN_REF="$URIRUN_REF" \
+            -e URIRUN_TEST_PROFILE="$URIRUN_TEST_PROFILE" \
+            urirun-linux-test
+
+      - name: Run runner profile
+        if: matrix.profile != 'linux-docker'
+        shell: bash
+        run: python scripts/run_tests.py
+
+      - name: Collect reports after failure
+        if: failure()
+        shell: bash
+        run: python scripts/collect_report.py || true
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reports-${{ matrix.profile }}
+          path: reports/
+          if-no-files-found: warn
+
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## urirun multiplatform E2E: $URIRUN_TEST_PROFILE" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- OS: ${{ matrix.os }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URIRUN_REPO_URL: $URIRUN_REPO_URL" >> "$GITHUB_STEP_SUMMARY"
+          echo "- URIRUN_REF: $URIRUN_REF" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Reports artifact: reports-${{ matrix.profile }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f reports/summary.json ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat reports/summary.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -1,0 +1,93 @@
+{
+  "version": "urirun.bindings.v2",
+  "bindings": {
+    "demo://local/echo/query/text": {
+      "uri": "demo://local/echo/query/text",
+      "kind": "query",
+      "adapter": "argv-template",
+      "inputSchema": {
+        "type": "object",
+        "required": ["text"],
+        "properties": {
+          "text": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "argv": [
+        "python",
+        "-c",
+        "import json,sys; print(json.dumps({'ok': True, 'text': sys.argv[1]}))",
+        "{text}"
+      ],
+      "meta": {
+        "connector": "multiplatform-fixture",
+        "label": "Echo text through a real argv process"
+      }
+    },
+    "demo://local/fail/command/boom": {
+      "uri": "demo://local/fail/command/boom",
+      "kind": "command",
+      "adapter": "argv-template",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "argv": [
+        "python",
+        "-c",
+        "import sys; sys.stderr.write('fixture boom\\n'); sys.exit(23)"
+      ],
+      "meta": {
+        "connector": "multiplatform-fixture",
+        "label": "Intentional failing command for error-report tests"
+      }
+    },
+    "demo://local/path/query/roundtrip": {
+      "uri": "demo://local/path/query/roundtrip",
+      "kind": "query",
+      "adapter": "argv-template",
+      "inputSchema": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "argv": [
+        "python",
+        "-c",
+        "import json,pathlib,sys; p=pathlib.Path(sys.argv[1]); print(json.dumps({'exists': p.exists(), 'name': p.name, 'suffix': p.suffix, 'path': str(p)}))",
+        "{path}"
+      ],
+      "meta": {
+        "connector": "multiplatform-fixture",
+        "label": "Roundtrip a platform path through argv without shell quoting"
+      }
+    },
+    "demo://local/cwd/query/show": {
+      "uri": "demo://local/cwd/query/show",
+      "kind": "query",
+      "adapter": "argv-template",
+      "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": false
+      },
+      "argv": [
+        "python",
+        "-c",
+        "import json,pathlib; print(json.dumps({'cwd': str(pathlib.Path.cwd())}))"
+      ],
+      "meta": {
+        "connector": "multiplatform-fixture",
+        "label": "Report process working directory"
+      }
+    }
+  }
+}
