@@ -2,47 +2,37 @@
 
 [![urirun multiplatform e2e](https://github.com/if-uri/urirun-multiplatform-test/actions/workflows/multiplatform.yml/badge.svg)](https://github.com/if-uri/urirun-multiplatform-test/actions/workflows/multiplatform.yml)
 
-Samodzielny black-box test harness dla `urirun`. Repo pobiera wskazaną wersję `urirun`, instaluje ją w świeżym virtualenv, uruchamia realne komendy CLI i zapisuje raporty diagnostyczne do `reports/`.
+Standalone black-box smoke and E2E harness for `urirun`. The repository fetches a selected `urirun` version, installs it into a fresh virtualenv, runs real CLI and transport scenarios, and writes diagnostics to `reports/`.
 
-## Architektura
+## Architecture
 
-Linux jest testowany przez Docker, bo kontenery Linux są normalnym i powtarzalnym środowiskiem testowym.
+Linux is tested through Docker because Linux containers are a normal, repeatable test environment.
 
-Windows i macOS nie są tu udawane jako zwykłe kontenery Docker. Te systemy są testowane przez GitHub Actions runners (`windows-latest`, `macos-latest`) albo mogą zostać przeniesione na self-hosted runners z tym samym workflow. To jest celowe: kontenery Windows/macOS nie są równoważnym, legalnie i technicznie prostym substytutem pełnych runnerów dla tego typu E2E.
+Windows and macOS are not treated as ordinary Docker containers. They are tested on GitHub Actions runners (`windows-latest`, `macos-latest`) or equivalent self-hosted runners. That split is intentional: Windows/macOS containers are not a technically or legally equivalent substitute for full OS runners for this E2E surface.
 
-## Profile
+## Profiles
 
-- `linux-docker` - buduje `docker/linux/Dockerfile` i uruchamia cały suite w kontenerze.
-- `windows-runner` - uruchamia suite bezpośrednio na runnerze Windows.
-- `macos-runner` - uruchamia suite bezpośrednio na runnerze macOS.
+- `linux-docker` - builds `docker/linux/Dockerfile` and runs the full suite in a Linux container.
+- `windows-runner` - runs the suite directly on Windows through `pwsh`.
+- `macos-runner` - runs the suite directly on macOS through `bash`.
 
-## Zmienne środowiskowe
+## Environment
 
-- `URIRUN_REPO_URL` - repozytorium `urirun` do sklonowania. Domyślnie `https://github.com/if-uri/urirun.git`.
-- `URIRUN_REF` - branch/tag/commit do testowania. Domyślnie `main`.
-- `URIRUN_SOURCE_DIR` - opcjonalnie lokalna ścieżka do źródeł `urirun`; użyteczne w development, omija `git clone`, ale nadal wykonuje instalację pakietu.
-- `URIRUN_TEST_PROFILE` - nazwa profilu, ustawiana przez CI.
-- `URIRUN_TEST_VENV` - ścieżka do virtualenv używanego przez testy; zwykle ustawiana automatycznie.
+- `URIRUN_REPO_URL` - repository URL for the tested `urirun`; default `https://github.com/if-uri/urirun.git`.
+- `URIRUN_REF` - branch, tag, or commit to test; default `main`.
+- `URIRUN_SOURCE_DIR` - optional local checkout of `urirun`; useful for development, still performs a real package install.
+- `URIRUN_TEST_PROFILE` - profile name, usually set by CI.
+- `URIRUN_TEST_VENV` - virtualenv path used by tests; normally set by `scripts/run_tests.py`.
 
-## Lokalnie
+## Local Run
 
-Z domyślnego GitHuba:
+From GitHub:
 
 ```bash
 python scripts/run_tests.py
 ```
 
-Po świeżym checkoutcie nie trzeba tworzyć `.work/` ręcznie. `scripts/run_tests.py` sam:
-
-- tworzy `.work/venv`,
-- instaluje zależności test harnessu,
-- pobiera albo wskazuje źródła `urirun`,
-- instaluje `urirun`,
-- uruchamia pytest,
-- zbiera `reports/summary.json`.
-- zapisuje `reports/junit.xml`.
-
-Na lokalnym checkoutcie `urirun`:
+From a local `urirun` checkout:
 
 ```bash
 URIRUN_SOURCE_DIR=/path/to/urirun python scripts/run_tests.py
@@ -55,13 +45,7 @@ $env:URIRUN_SOURCE_DIR="C:\Users\Praca\fork\if-uri\urirun"
 python scripts\run_tests.py
 ```
 
-Można też uruchamiać sam `pytest`, ale najpierw trzeba przygotować środowisko:
-
-```bash
-python scripts/bootstrap.py
-python scripts/install_urirun.py
-.work/venv/bin/python -m pytest
-```
+After a fresh checkout, no manual `.work/` setup is required. `scripts/run_tests.py` creates `.work/venv`, installs the test harness, fetches or uses `urirun`, installs it, runs pytest, writes `reports/summary.json`, and writes `reports/junit.xml`.
 
 ## Docker Linux
 
@@ -70,7 +54,7 @@ docker build -t urirun-linux-test -f docker/linux/Dockerfile .
 docker run --rm urirun-linux-test
 ```
 
-Jeżeli chcesz zachować raporty poza kontenerem:
+To keep reports outside the container:
 
 ```bash
 docker run --rm -v "$PWD/reports:/workspace/reports" urirun-linux-test
@@ -78,84 +62,101 @@ docker run --rm -v "$PWD/reports:/workspace/reports" urirun-linux-test
 
 ## GitHub Actions
 
-Workflow jest w `.github/workflows/multiplatform.yml`. Matrix uruchamia:
+Workflow: `.github/workflows/multiplatform.yml`.
 
-- `ubuntu-latest` z profilem `linux-docker`,
-- `windows-latest` z profilem `windows-runner`,
-- `macos-latest` z profilem `macos-runner`.
+The matrix runs:
 
-Workflow checkoutuje repo testowe, instaluje Python i Node, pobiera/instaluje `urirun`, uruchamia testy, uploaduje `reports/` jako artifact i dopisuje summary do GitHub Actions.
+- `linux-docker / ubuntu-latest`
+- `windows-runner / windows-latest`
+- `macos-runner / macos-latest`
 
-Dla self-hosted runnerów można skopiować ten sam job i zmienić `runs-on` na własne etykiety, np. `[self-hosted, windows, urirun]` albo `[self-hosted, macOS, urirun]`. Ważne, żeby runner miał Python 3.10+, Git, dostęp do `URIRUN_REPO_URL` oraz właściwą powłokę systemową.
+The workflow checks out this test repository, installs Python and Node, fetches and installs `urirun`, runs the full test suite, uploads `reports/`, uploads `reports/junit.xml`, and writes a readable GitHub Actions summary.
 
-## Raporty
+## Self-Hosted Runners
 
-Raporty JSON w `reports/` zawierają:
+Self-hosted runner setup guides:
 
-- system operacyjny,
-- wersję Pythona,
-- wersję Node, jeśli jest dostępna,
-- wersję `urirun`,
-- komendę,
-- exit code,
-- stdout,
-- stderr,
-- stack trace, jeśli błąd pochodzi z pytest/Pythona,
-- minimalną rekomendację naprawy.
+- [Windows self-hosted runner](docs/self-hosted-runners/windows.md)
+- [macOS self-hosted runner](docs/self-hosted-runners/macos.md)
+- [Linux self-hosted runner](docs/self-hosted-runners/linux.md)
 
-`scripts/collect_report.py` tworzy `reports/summary.json`.
+Use these when replacing GitHub-hosted runners with company-managed Windows, macOS, or Linux hosts.
 
-## Testy
+## Reports
 
-Aktualnie zaimplementowane:
+Generated reports live in `reports/`:
 
-- instalacja i `urirun --version`,
-- świeży bootstrap bez istniejącego `.work/`,
-- `urirun doctor --json`,
-- `urirun version --no-check`,
-- help dla głównych subkomend CLI,
-- walidacja fixture registry,
-- `discover`,
-- `tree --format json`,
-- `gen openapi`,
-- `agent space`,
-- `errors bindings`,
-- `add-command`,
-- konfiguracja `node init/config` bez startowania usługi,
-- konfiguracja `host init/add-node/config` bez sieci,
-- lista tras z registry,
-- błędna komenda CLI,
-- kompilacja registry,
-- `urirun run` dla realnej trasy `argv-template`,
-- błędny URI,
-- `urirun connectors show planfile` jako `xfail` dla obecnej niezgodności handlera CLI,
-- `urirun connectors doctor --json` dla wbudowanych connectorów `ready`, `session`, `skill`,
-- bezpieczny dry-run `connectors install` dla kilku connector ids,
-- deny-by-default bez `--allow`,
-- błędna allow-list,
-- ścieżki natywne Windows/Linux/macOS,
-- ścieżki z odstępami,
-- output file w katalogu ze spacją,
-- smoke test shelli: bash tam gdzie dostępny, PowerShell tam gdzie dostępny, `cmd.exe` na Windows,
-- raport błędu dla intencjonalnie padającej trasy,
-- zapis/wykrycie `error://` lub error log dla odmowy polityki,
-- stack trace dla błędów procesu jako `xfail`, bo aktualny envelope CLI nie gwarantuje pełnego tracebacku.
+- `summary.json` - OS, Python, Node, `urirun`, install metadata, and artifact list.
+- `junit.xml` - pytest JUnit report for CI systems.
+- `install-warning.json` - recorded when `urirun` package dependency resolution needs fallback handling.
+- `transport-*.json` - structured transport failure reports with server/client logs.
+- `*.stdout.log` and `*.stderr.log` - server process logs for transport tests.
 
-## Stabilność
+Transport failure reports include transport, host, port, server command, client command, server stdout/stderr, client stdout/stderr, exit code, OS, Python version, `urirun` version, and a repair recommendation.
 
-Markery pytest:
+## Completed / Covered In This Repository
 
-- `stable` - podstawowy cross-platform suite,
-- `experimental` - przydatna powierzchnia, która może się jeszcze zmieniać,
-- `expected_failure` - znany brak albo niestabilne zachowanie, zwykle z `xfail`.
+- Linux Docker profile.
+- Windows GitHub Actions runner.
+- macOS GitHub Actions runner.
+- Installation smoke test.
+- CLI tests.
+- Registry tests.
+- Connector smoke tests.
+- Permission and allow-list tests.
+- Path and shell tests.
+- Structured JSON reports.
+- JUnit report.
+- Stable HTTP transport smoke test.
+- Experimental MCP stdio transport smoke test.
+- Experimental gRPC transport smoke test when optional `grpcio` is available.
+- Self-hosted runner documentation for Windows, macOS, and Linux.
 
-## Znane ograniczenia
+## Current Tests
 
-Aktualny `urirun` z lokalnego repo deklaruje zależności `urirun-contract`, `urirun-connector-router` i `urirun-flow`, których pip może nie znaleźć jako publiczne pakiety. Instalator najpierw próbuje normalnego `pip install`; jeśli to się nie uda, zapisuje `reports/install-warning.json`, instaluje dostępne publiczne zależności i wykonuje kontrolowany fallback `pip install --no-deps` plus `PYTHONPATH` do pobranych źródeł. To nadal uruchamia realny CLI i realne procesy, ale raportuje problem pakietowania zamiast go ukrywać.
+Implemented coverage includes:
 
-TODO:
+- `urirun --version`
+- `urirun doctor --json`
+- `urirun version --no-check`
+- main command help
+- `validate`
+- `compile`
+- `discover`
+- `tree --format json`
+- `gen openapi`
+- `agent space`
+- `errors bindings`
+- `add-command`
+- `node init/config`
+- `host init/add-node/config`
+- `urirun run`
+- invalid command and invalid URI behavior
+- connector doctor and safe connector install dry-run coverage
+- deny-by-default and wrong allow-list behavior
+- native paths, paths with spaces, and output paths with spaces
+- bash, PowerShell, and Windows `cmd.exe` shell coverage where available
+- HTTP node `/health` and `/run`
+- MCP `tools/call` over stdio
+- gRPC server/client roundtrip when optional gRPC dependencies are installed
+- error reporting for an intentionally failing route
 
-- usunąć fallback po opublikowaniu albo poprawnym vendoringu wszystkich zależności `urirun`,
-- odwrócić `xfail` dla `connectors show planfile`, gdy handler CLI obsłuży komendę,
-- dodać pełniejszy test transportów HTTP/gRPC/MCP inspirowany `examples/matrix`,
-- dodać self-hosted runner examples dla firmowych Windows/macOS hostów.
+## Stability Markers
+
+- `stable` - expected to pass across Linux Docker, Windows runner, and macOS runner.
+- `experimental` - real coverage for a surface that may still depend on optional packages or evolving behavior.
+- `expected_failure` - known behavior gap, normally paired with `xfail`.
+
+## Remaining Work In This Repository
+
+- Optional richer transport logs, for example timing and request/response excerpts for successful HTTP/MCP/gRPC runs.
+- Optional Docker Compose matrix coverage that mirrors more of `urirun/examples/matrix` without pulling unrelated language SDK runtimes into every CI run.
+- Optional self-hosted runner workflow variants that use organization-specific runner labels.
+
+## External Blockers In Main `urirun`
+
+These items depend on changes in the main `urirun` repository and should not be hidden or pretended fixed in this test repository:
+
+- Remove the installation fallback after `urirun` publishes or vendors all dependencies declared by `adapters/python/pyproject.toml` (`urirun-contract`, `urirun-connector-router`, `urirun-flow`, and version constraints).
+- Remove the `xfail` from `connectors show planfile` after the main `urirun` CLI handler supports the command exposed by its parser.
+- Promote gRPC transport coverage from experimental to stable only after the tested `urirun` install path consistently includes the required optional `grpcio` dependency on all target platforms.
