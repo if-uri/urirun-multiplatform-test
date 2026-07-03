@@ -2,7 +2,136 @@
 
 This document outlines the remaining work and future improvements for the `urirun-multiplatform-test` repository.
 
+## Documentation Status Definitions
+
+The following status definitions are used throughout this repository:
+
+- **DONE**: Feature or capability is fully implemented, tested, and verified in CI
+- **PARTIAL**: Feature is partially implemented but has gaps or limitations
+- **EXPERIMENTAL**: Feature is implemented but may depend on optional packages or evolving behavior
+- **XFAIL**: Known behavior gap, normally paired with pytest.xfail, documented as expected failure
+- **TODO**: Feature is planned but not yet implemented
+- **EXTERNAL BLOCKER**: Feature depends on changes in external repositories (main urirun, get-urirun-com)
+- **NOT VERIFIED**: Feature exists but has not been verified in CI environment
+
 ## Critical TODO
+
+### 0. Self-Validation and Validation Report
+
+A self-validation process should be established to maintain project health and documentation accuracy after major changes.
+
+**Required work:**
+- Create and maintain `docs/VALIDATION_REPORT.md` as a living document
+- The validation report should contain:
+  - Status classification: DONE, PARTIAL, EXPERIMENTAL, XFAIL, TODO, EXTERNAL BLOCKER, NOT VERIFIED
+  - Evidence from code (file references, function names, test markers)
+  - Documentation vs code consistency verification
+  - List of tests that have been run and their results
+  - List of tests not run with reasons
+  - Assessment of project direction and risks
+  - Recommended next steps
+- Run self-validation after major architectural changes
+- Update validation report before releasing new versions
+
+**Impact:** Without self-validation, documentation may drift from implementation and project health becomes unclear.
+
+### 0.1 Self-Validation Checklist
+
+The `VALIDATION_REPORT.md` should include a structured checklist table:
+
+| Area | Expected | Current status | Evidence | Action |
+| ---- | -------- | -------------- | -------- | ------ |
+| Core CLI tests | DONE | NOT VERIFIED | tests/test_cli_*.py | Run CI verification |
+| Transport tests | DONE | NOT VERIFIED | tests/test_transports.py | Run CI verification |
+| Product artifacts | PARTIAL | PARTIAL | tests/test_product_artifacts_deployment.py | Add platform artifacts |
+| Deployment bundle | TODO | TODO | N/A | Implement deployment-bundle |
+| Production get.urirun.com | EXPERIMENTAL | EXPERIMENTAL | tests/test_get_urirun_site.py | Stabilize selectors |
+| Local get-urirun-com | PARTIAL | PARTIAL | tests/test_product_artifacts_deployment.py | Add real dev server |
+| Installer flow | PARTIAL | PARTIAL | tests/test_get_urirun_install_flow.py | Add remote execution |
+| Remote installer execution | TODO | TODO | tests/test_get_urirun_install_flow.py | Add CI approval |
+| GUI user journey | EXPERIMENTAL | EXPERIMENTAL | tests/test_gui_user_journey.py | Stabilize UI contract |
+| Playwright diagnostics | DONE | NOT VERIFIED | tests/gui_utils.py | Run CI verification |
+| GitHub Actions core matrix | NOT VERIFIED | NOT VERIFIED | .github/workflows/multiplatform.yml | Run all profiles |
+| GitHub Actions installer-gui matrix | NOT VERIFIED | NOT VERIFIED | .github/workflows/multiplatform.yml | Run all profiles |
+| Documentation consistency | PARTIAL | PARTIAL | docs/*.md | Run self-validation |
+| TODO accuracy | PARTIAL | PARTIAL | docs/TODO.md | Run self-validation |
+
+**Impact:** Without a structured checklist, it is difficult to track project status and identify gaps.
+
+### 0.2 Project Summary and Diagrams
+
+Project summary and architecture diagrams must be maintained as part of the repository documentation.
+
+**Required work:**
+- Ensure project summary is documented in `README.md` and `docs/IMPLEMENTED.md`
+- Maintain architecture diagrams in `docs/multiplatform-e2e-design.md`
+- Update diagrams when test architecture changes
+- Diagrams should cover:
+  - Full E2E flow from source to CLI/GUI validation
+  - Production vs local dev site comparison
+  - Product artifact flow (source → build → deployment → install)
+  - Deployment bundle / CI/CD intermediate format
+- Keep diagrams in sync with actual implementation
+
+**Impact:** Without maintained diagrams, architectural decisions become unclear and onboarding becomes difficult.
+
+### 0.3 Deployment-Bundle Intermediate Solution
+
+Since production deployment should not be automatically executed by the test harness, an intermediate `deployment-bundle` format is needed.
+
+**Required work:**
+- Design and implement `deployment-bundle/` as a local, universal format for CI/CD on Linux/Windows/macOS
+- Target format:
+  ```
+  deployment-bundle/
+    manifest.json
+    artifacts/
+      urirun-<version>-py3-none-any.whl
+      urirun-<version>.tar.gz
+      urirun-<version>-windows.exe       # future
+      urirun-<version>-linux.tar.gz      # future
+      urirun-<version>-macos.pkg         # future
+    checksums/
+      SHA256SUMS
+    site/
+      index.html
+    deployment-report.json
+  ```
+- Implement flow:
+  ```
+  urirun source
+    -> product artifacts (wheel, sdist, future platform packages)
+    -> deployment-bundle/
+    -> local static server / local get-urirun-com
+    -> install flow (Playwright + install scripts)
+    -> CLI check (--version, doctor, basic command)
+    -> GUI check (dashboard serve + Playwright clicks)
+    -> promotion candidate for production
+  ```
+- Add tests to validate deployment-bundle structure and contents
+- Document deployment-bundle contract and validation process
+- **Add deployment-bundle diagram to `docs/multiplatform-e2e-design.md`** showing the flow from source to promotion candidate
+
+**Impact:** Without deployment-bundle, there is no clear intermediate artifact between build and production deployment.
+
+### 0.4 Production Deployment as Trusted Promotion Job
+
+The test harness should not deploy to production by default. Production deployment must be a separate trusted CI/CD job.
+
+**Required work:**
+- Clarify that test harness prepares and validates deployment-bundle but does not deploy to production
+- Production deployment should be a separate trusted CI/CD job with:
+  - Explicit secrets (deployment credentials, signing keys)
+  - Manual approval or gated promotion
+  - Separate workflow in main urirun repository or dedicated deployment repo
+- Test harness should:
+  - Build and validate deployment-bundle
+  - Run all tests against deployment-bundle
+  - Mark deployment-bundle as promotion candidate only after tests pass
+- Document the separation between test harness and production deployment
+- Add workflow documentation for trusted promotion job
+
+**Impact:** Without clear separation, production deployments could happen without proper validation or approval.
 
 ### 1. Real Local `get-urirun-com` Dev Server
 
@@ -21,12 +150,30 @@ Currently, the local `get-urirun-com` is partially prepared/simulated. The test 
 
 Currently, the product artifact build primarily creates Python wheel and sdist files. Platform-specific installers and executables are not yet built.
 
+**Current artifacts:**
+- Python wheel (`.whl`)
+- Python sdist (`.tar.gz`)
+- manifest.json
+- checksums (SHA256)
+
+**Target artifacts (future):**
+- Windows `.exe` or installer (e.g., NSIS, WiX)
+- Linux package/tarball (e.g., `.deb`, `.rpm`, AppImage, `.tar.gz`)
+- macOS package (e.g., `.pkg`, `.app`, Homebrew formula)
+- File naming contract (e.g., `urirun-<version>-<platform>.<ext>`)
+- Manifest contract (version, checksums, platform-specific URLs)
+- Checksums file (SHA256SUMS with all artifacts)
+- Integration contract with `get.urirun.com` (how to reference platform artifacts)
+
 **Required work:**
 - Verify whether the main `urirun` repository has a pipeline for building `.exe` installers for Windows
 - Verify whether the main `urirun` repository has a pipeline for building platform packages for Linux (e.g., `.deb`, `.rpm`, AppImage)
 - Verify whether the main `urirun` repository has a pipeline for building packages for macOS (e.g., `.pkg`, `.app`, Homebrew formula)
 - If these pipelines exist, integrate them into `test_product_artifacts_deployment.py`
 - If they do not exist, document the required build contract and artifact format
+- Define file naming convention for platform artifacts
+- Define manifest schema for multi-platform artifacts
+- Define how `get.urirun.com` should reference platform-specific installers
 
 **Impact:** Without platform-specific artifacts, the user journey cannot validate the complete end-to-end installation experience for each platform.
 
@@ -43,9 +190,11 @@ The test harness should not deploy to production without explicit credentials an
 
 **Impact:** Without a clear contract, it is difficult to validate that production deployments are consistent and complete.
 
-### 4. CI Verification
+### 4. CI Verification (NOT VERIFIED)
 
 Verify and document the actual results of GitHub Actions runs for all platform profiles.
+
+**Current status:** NOT VERIFIED - Tests have not been run in CI environment
 
 **Required work:**
 - Run and verify `linux-docker` profile on GitHub Actions
@@ -56,6 +205,7 @@ Verify and document the actual results of GitHub Actions runs for all platform p
 - Run and verify `macos-installer-gui` profile on GitHub Actions
 - Document any platform-specific failures or quirks
 - Add platform-specific workarounds if needed
+- Update validation report with CI results
 
 **Impact:** Without CI verification, it is unclear which profiles actually pass in the CI environment.
 
@@ -65,12 +215,25 @@ Verify and document the actual results of GitHub Actions runs for all platform p
 
 The current site artifact comparison is basic. It only counts references and does not perform deep validation.
 
+**Target comparison depth:**
+- Compare manifests (structure, version fields, artifact lists)
+- Compare checksums between production and local dev
+- Compare artifact lists and verify all required kinds are present
+- Compare installer links (Windows `.ps1`, Linux/macOS `.sh`)
+- Compare HTTP status codes for artifact endpoints
+- Compare install flow behavior (download, hash, execution)
+- Compare CLI results after installation
+- Compare GUI results after installation
+- Compare screenshots between production and dev (visual regression)
+- Generate diff-style report for easier debugging
+
 **Improvements:**
 - Compare actual artifact URLs between production and local dev
 - Compare manifest structures and checksums
 - Validate that production references point to existing artifacts
 - Add diff-style reporting for easier debugging
 - Validate that local dev artifacts are correctly wired into the dev server
+- Add visual regression testing with screenshot comparison
 
 ### 6. Enhanced Manifest Comparison
 
@@ -83,15 +246,26 @@ The current manifest comparison is minimal. It should provide more detailed vali
 - Check for orphaned artifacts in the deployment directory
 - Add schema validation for manifest.json
 
-### 7. More Stable GUI Selectors
+### 7. GUI Test Contract
 
-The current GUI selectors are simple text-based matches. They may break if the dashboard UI changes significantly.
+The current GUI selectors are simple text-based matches. They may break if the dashboard UI changes significantly. A stable GUI test contract is needed.
+
+**Required GUI contract:**
+- Stable GUI entry point (consistent URL and port for `urirun host dashboard serve`)
+- Stable selectors (prefer `data-testid` attributes over text-based selectors)
+- Fallback selectors for robustness (CSS classes, aria-labels)
+- Clear list of critical user flows to click (Chat, Nodes, Tasks, Services, Artifacts, etc.)
+- Policy for console/network errors (whitelist acceptable errors, fail on critical errors)
+- Screenshots and traces as diagnostic artifacts (not product artifacts)
+- Documented UI contract for dashboard developers
 
 **Improvements:**
 - Use more specific selectors (e.g., data-testid attributes, CSS classes)
 - Add fallback selectors for robustness
 - Document the required UI contract for the dashboard
 - Add visual regression testing if feasible
+- Define which console/network errors are acceptable (e.g., third-party analytics)
+- Separate critical errors from non-critical warnings
 
 ### 8. Whitelist Acceptable Network/Console Errors
 

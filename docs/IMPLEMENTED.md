@@ -61,19 +61,21 @@ This document describes what has been implemented in the `urirun-multiplatform-t
 - **Conditional execution**: Skipped if `grpcio` is not installed
 - **Experimental**: Marked as experimental due to optional dependency
 
-### Product Artifact Build
+### Product Artifact Build (PARTIAL)
 - **Python wheel build**: Build wheel from `adapters/python`
 - **Python sdist build**: Build source distribution
 - **Manifest generation**: `manifest.json` with version, sha256, and metadata
 - **Checksum calculation**: SHA256 for all artifacts
 - **Artifact metadata**: Size, kind (wheel/sdist), platform classification
+- **Status**: PARTIAL - Only Python wheel/sdist are built. Platform-specific artifacts (.exe, .deb, .pkg) are not yet implemented. See TODO.md for details.
 
-### Local Deployment Simulation
+### Local Deployment Simulation (PARTIAL)
 - **Local deployment directory**: `reports/local-deployment/`
 - **Artifact copying**: Copy built artifacts to deployment directory
 - **Manifest with URLs**: Manifest includes artifact URLs
 - **Index HTML**: Simple HTML page listing artifacts and manifest
 - **Safe for CI**: Does not deploy to production without explicit credentials
+- **Status**: PARTIAL - Creates a simple static simulation. Does not integrate with real local get-urirun-com dev server. See TODO.md for deployment-bundle intermediate solution.
 
 ### Production `get.urirun.com` Browser Smoke
 - **Playwright browser test**: Open production site in Chromium
@@ -91,14 +93,15 @@ This document describes what has been implemented in the `urirun-multiplatform-t
 - **Installer excerpt**: Save first 4000 characters for inspection
 - **Multiple candidates**: Try multiple URL patterns if primary fails
 
-### Optional Remote Installer Execution
+### Optional Remote Installer Execution (PARTIAL)
 - **Isolated environment**: Execute installer in isolated HOME/USERPROFILE
 - **Shell execution**: PowerShell on Windows, bash on Linux/macOS
 - **Post-install checks**: Verify `urirun --version`, `urirun doctor --json`, `urirun --help`
 - **Conditional execution**: Only runs when `GET_URIRUN_ALLOW_REMOTE_INSTALL=1`
 - **Local-repo mode**: Alternative safe installation from local source
+- **Status**: PARTIAL - Download and hash work. Remote execution requires explicit approval and has not been verified in CI. See TODO.md for CI verification status.
 
-### GUI/Dashboard User Journey Through Playwright
+### GUI/Dashboard User Journey Through Playwright (EXPERIMENTAL)
 - **Dashboard start**: `urirun host dashboard serve` with isolated project
 - **Health check**: Wait for `/api/health` endpoint
 - **Browser navigation**: Open dashboard in Chromium
@@ -108,7 +111,7 @@ This document describes what has been implemented in the `urirun-multiplatform-t
 - **Screenshot capture**: Screenshots before and after clicks
 - **Trace recording**: Playwright trace with screenshots, snapshots, sources
 - **Process logs**: Capture stdout/stderr from dashboard process
-- **Experimental**: Marked as experimental due to evolving dashboard UI
+- **Status**: EXPERIMENTAL - Marked as experimental due to evolving dashboard UI. Uses simple text-based selectors that may break. See TODO.md for GUI test contract requirements.
 
 ### Reports and Diagnostics
 - **summary.json**: OS, Python, Node, urirun, install metadata, artifact list
