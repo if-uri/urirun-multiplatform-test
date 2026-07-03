@@ -63,7 +63,12 @@ jobs:
             urirun-linux-test
 
       - name: Run runner profile
-        if: matrix.profile != 'linux-docker'
+        if: matrix.profile == 'windows-runner'
+        shell: pwsh
+        run: python scripts/run_tests.py
+
+      - name: Run macOS runner profile
+        if: matrix.profile == 'macos-runner'
         shell: bash
         run: python scripts/run_tests.py
 
@@ -78,6 +83,14 @@ jobs:
         with:
           name: reports-${{ matrix.profile }}
           path: reports/
+          if-no-files-found: warn
+
+      - name: Upload JUnit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-${{ matrix.profile }}
+          path: reports/junit.xml
           if-no-files-found: warn
 
       - name: Job summary

@@ -1,5 +1,7 @@
 # urirun-multiplatform-test
 
+[![urirun multiplatform e2e](https://github.com/if-uri/urirun-multiplatform-test/actions/workflows/multiplatform.yml/badge.svg)](https://github.com/if-uri/urirun-multiplatform-test/actions/workflows/multiplatform.yml)
+
 Samodzielny black-box test harness dla `urirun`. Repo pobiera wskazaną wersję `urirun`, instaluje ją w świeżym virtualenv, uruchamia realne komendy CLI i zapisuje raporty diagnostyczne do `reports/`.
 
 ## Architektura
@@ -38,6 +40,7 @@ Po świeżym checkoutcie nie trzeba tworzyć `.work/` ręcznie. `scripts/run_tes
 - instaluje `urirun`,
 - uruchamia pytest,
 - zbiera `reports/summary.json`.
+- zapisuje `reports/junit.xml`.
 
 Na lokalnym checkoutcie `urirun`:
 

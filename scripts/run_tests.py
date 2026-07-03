@@ -15,9 +15,9 @@ def bin_path(name: str) -> Path:
     return VENV / ("Scripts" if os.name == "nt" else "bin") / f"{name}{suffix}"
 
 
-def run(command: list[str], env: dict[str, str] | None = None) -> None:
+def run(command: list[str], env: dict[str, str] | None = None) -> subprocess.CompletedProcess[None]:
     print("+", " ".join(command), flush=True)
-    subprocess.run(command, cwd=ROOT, env=env, check=True)
+    return subprocess.run(command, cwd=ROOT, env=env, check=True)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -29,9 +29,20 @@ def main(argv: list[str] | None = None) -> int:
     env.setdefault("PYTHONUTF8", "1")
     env.setdefault("PYTHONIOENCODING", "utf-8")
     pytest_args = argv or ["-q"]
-    run([str(bin_path("python")), "-m", "pytest", *pytest_args], env=env)
-    run([str(bin_path("python")), str(ROOT / "scripts" / "collect_report.py")], env=env)
-    return 0
+    if not any(arg == "--junitxml" or arg.startswith("--junitxml=") for arg in pytest_args):
+        pytest_args = [*pytest_args, "--junitxml", str(ROOT / "reports" / "junit.xml")]
+    test_rc = 0
+    try:
+        run([str(bin_path("python")), "-m", "pytest", *pytest_args], env=env)
+    except subprocess.CalledProcessError as exc:
+        test_rc = exc.returncode
+    finally:
+        try:
+            run([str(bin_path("python")), str(ROOT / "scripts" / "collect_report.py")], env=env)
+        except subprocess.CalledProcessError as exc:
+            if test_rc == 0:
+                test_rc = exc.returncode
+    return test_rc
 
 
 if __name__ == "__main__":
