@@ -47,6 +47,22 @@ def main() -> int:
         "urirun": capture([str(bin_path("urirun")), "--version"]),
         "install": install_meta,
         "reports": sorted(p.name for p in REPORT_DIR.glob("*.json") if p.name != "summary.json"),
+        "product_artifacts": {
+            "directory": str(REPORT_DIR / "product-artifacts"),
+            "local_deployment_directory": str(REPORT_DIR / "local-deployment" / "artifacts"),
+            "files": sorted(
+                str(p.relative_to(REPORT_DIR))
+                for folder in [REPORT_DIR / "product-artifacts", REPORT_DIR / "local-deployment" / "artifacts", REPORT_DIR / "installer"]
+                if folder.exists()
+                for p in folder.glob("*")
+                if p.is_file()
+            ),
+        },
+        "diagnostic_test_artifacts": {
+            "screenshots": sorted(str(p.relative_to(REPORT_DIR)) for p in (REPORT_DIR / "screenshots").glob("*") if p.is_file()) if (REPORT_DIR / "screenshots").exists() else [],
+            "traces": sorted(str(p.relative_to(REPORT_DIR)) for p in (REPORT_DIR / "traces").glob("*") if p.is_file()) if (REPORT_DIR / "traces").exists() else [],
+            "logs": sorted(str(p.relative_to(REPORT_DIR)) for p in REPORT_DIR.glob("*.log")),
+        },
     }
     path = REPORT_DIR / "summary.json"
     path.write_text(json.dumps(summary, indent=2, ensure_ascii=False), encoding="utf-8")

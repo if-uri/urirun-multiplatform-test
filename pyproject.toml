@@ -11,6 +11,12 @@ dependencies = [
   "pytest>=7",
 ]
 
+[project.optional-dependencies]
+gui = [
+  "build>=1.2",
+  "playwright>=1.45",
+]
+
 [tool.setuptools]
 py-modules = []
 
@@ -21,4 +27,5 @@ markers = [
   "stable: core tests expected to pass on Linux, Windows, and macOS runners",
   "experimental: useful coverage for surfaces that may still change",
   "expected_failure: documented gap or unstable behavior, usually paired with xfail",
+  "user_journey: end-user installer and GUI/browser tests",
 ]

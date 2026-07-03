@@ -13,6 +13,23 @@ on:
         description: "Git ref to test"
         required: false
         default: "main"
+      allow_remote_install:
+        description: "Allow executing remote get.urirun.com installer scripts"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      get_urirun_site_mode:
+        description: "Install site mode for user journey tests"
+        required: false
+        default: "production-site"
+        type: choice
+        options:
+          - production-site
+          - local-dev-site
+          - both
 
 jobs:
   e2e:
@@ -103,6 +120,118 @@ jobs:
           echo "- URIRUN_REPO_URL: $URIRUN_REPO_URL" >> "$GITHUB_STEP_SUMMARY"
           echo "- URIRUN_REF: $URIRUN_REF" >> "$GITHUB_STEP_SUMMARY"
           echo "- Reports artifact: reports-${{ matrix.profile }}" >> "$GITHUB_STEP_SUMMARY"
+          if [ -f reports/summary.json ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo '```json' >> "$GITHUB_STEP_SUMMARY"
+            cat reports/summary.json >> "$GITHUB_STEP_SUMMARY"
+            echo '```' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  installer-gui-e2e:
+    name: ${{ matrix.profile }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            profile: linux-installer-gui
+          - os: windows-latest
+            profile: windows-installer-gui
+          - os: macos-latest
+            profile: macos-installer-gui
+
+    env:
+      URIRUN_REPO_URL: ${{ github.event.inputs.urirun_repo_url || 'https://github.com/if-uri/urirun.git' }}
+      URIRUN_REF: ${{ github.event.inputs.urirun_ref || 'main' }}
+      URIRUN_TEST_PROFILE: installer-gui-e2e
+      GET_URIRUN_PRODUCTION_URL: https://get.urirun.com/
+      GET_URIRUN_REPO_URL: https://github.com/if-uri/get-urirun-com.git
+      GET_URIRUN_REF: main
+      GET_URIRUN_SITE_MODE: ${{ github.event.inputs.get_urirun_site_mode || 'production-site' }}
+      GET_URIRUN_INSTALL_MODE: site
+      GET_URIRUN_ALLOW_REMOTE_INSTALL: ${{ github.event.inputs.allow_remote_install == 'true' && '1' || '0' }}
+      URIRUN_DEPLOYMENT_MODE: local-simulated
+      URIRUN_GUI_E2E: "1"
+      PYTHONUTF8: "1"
+      PYTHONIOENCODING: "utf-8"
+
+    steps:
+      - name: Checkout test repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Run Linux installer GUI user journey
+        if: matrix.profile == 'linux-installer-gui'
+        shell: bash
+        run: |
+          python scripts/run_tests.py \
+            tests/test_product_artifacts_deployment.py \
+            tests/test_get_urirun_site.py \
+            tests/test_get_urirun_install_flow.py \
+            tests/test_gui_user_journey.py
+
+      - name: Run Windows installer GUI user journey
+        if: matrix.profile == 'windows-installer-gui'
+        shell: pwsh
+        run: >
+          python scripts/run_tests.py
+          tests/test_product_artifacts_deployment.py
+          tests/test_get_urirun_site.py
+          tests/test_get_urirun_install_flow.py
+          tests/test_gui_user_journey.py
+
+      - name: Run macOS installer GUI user journey
+        if: matrix.profile == 'macos-installer-gui'
+        shell: bash
+        run: |
+          python scripts/run_tests.py \
+            tests/test_product_artifacts_deployment.py \
+            tests/test_get_urirun_site.py \
+            tests/test_get_urirun_install_flow.py \
+            tests/test_gui_user_journey.py
+
+      - name: Collect reports after failure
+        if: failure()
+        shell: bash
+        run: python scripts/collect_report.py || true
+
+      - name: Upload diagnostic test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostic-reports-${{ matrix.profile }}
+          path: reports/
+          if-no-files-found: warn
+
+      - name: Upload JUnit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-${{ matrix.profile }}
+          path: reports/junit.xml
+          if-no-files-found: warn
+
+      - name: Job summary
+        if: always()
+        shell: bash
+        run: |
+          echo "## urirun installer + GUI E2E: ${{ matrix.profile }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- OS: ${{ matrix.os }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Product artifacts: reports/product-artifacts and reports/local-deployment/artifacts" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Diagnostic test artifacts: reports/screenshots, reports/traces, logs, JSON, JUnit" >> "$GITHUB_STEP_SUMMARY"
+          echo "- GET_URIRUN_SITE_MODE: $GET_URIRUN_SITE_MODE" >> "$GITHUB_STEP_SUMMARY"
+          echo "- GET_URIRUN_ALLOW_REMOTE_INSTALL: $GET_URIRUN_ALLOW_REMOTE_INSTALL" >> "$GITHUB_STEP_SUMMARY"
           if [ -f reports/summary.json ]; then
             echo "" >> "$GITHUB_STEP_SUMMARY"
             echo '```json' >> "$GITHUB_STEP_SUMMARY"
