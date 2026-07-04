@@ -16,6 +16,7 @@ Windows and macOS are not treated as ordinary Docker containers. They are tested
 - `windows-runner` - runs the suite directly on Windows through `pwsh`.
 - `macos-runner` - runs the suite directly on macOS through `bash`.
 - `installer-gui-e2e` / `user-journey` - builds product artifacts, checks `get.urirun.com`, runs controlled installer flow, launches the dashboard GUI, and clicks through it with Playwright.
+- `desktop-kvm-e2e` - boots a `docker/desktop-pc` virtual desktop (Xvfb + openbox + x11vnc + noVNC) with a real `urirun node serve --execute` and `urirun-connector-kvm` inside, then automates a user task purely through mesh `kvm://` / `app://` URIs: launch a terminal, type, screenshot, OCR-verify. Watch it live at `http://127.0.0.1:16080/vnc.html`. Enable with `URIRUN_TEST_PROFILE=desktop-kvm-e2e` or `URIRUN_DESKTOP_KVM_E2E=1` (needs Docker); evidence lands in `reports/screenshots/desktop-kvm/` and `reports/desktop-kvm-doctor.json`.
 
 ## Environment
 
