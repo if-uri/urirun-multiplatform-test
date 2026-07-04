@@ -21,6 +21,10 @@ PUBLIC_RUNTIME_DEPS = [
     "pydantic>=2",
     "urirun-connector-router>=0.2.0",
     "urirun-flow>=0.2.2",
+    # mesh/host CLI needs these at runtime ('mesh not available' + scanner-shim crash
+    # in test_mesh_host without them); both published on PyPI since 2026-07-04
+    "urirun-runtime>=0.2.0",
+    "urirun-connectors-toolkit>=0.2.0",
 ]
 
 
