@@ -1,0 +1,15 @@
+services:
+  pc1:
+    build: .
+    image: urirun-desktop-pc:test
+    environment:
+      NODE_NAME: pc1
+    ports:
+      - "${PC1_NOVNC_PORT:-16080}:6080"
+      - "${PC1_NODE_PORT:-18765}:8765"
+    shm_size: 1gb
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8765/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 24
