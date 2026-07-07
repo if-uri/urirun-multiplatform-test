@@ -5,7 +5,7 @@ import os
 
 import pytest
 
-from tests.gui_utils import SCREENSHOT_DIR, current_system, monitor_page, require_playwright, write_json_report
+from tests.gui_utils import SCREENSHOT_DIR, classify_browser_events, current_system, monitor_page, require_playwright, write_json_report
 
 
 pytestmark = pytest.mark.skipif(
@@ -25,8 +25,10 @@ def test_get_urirun_home_page_browser_smoke():
         "http_status": None,
         "title": None,
         "content_checks": {},
-        "console_errors": [],
-        "failed_requests": [],
+        "accepted_console_errors": [],
+        "critical_console_errors": [],
+        "accepted_failed_requests": [],
+        "critical_failed_requests": [],
         "screenshot": str(SCREENSHOT_DIR / "get-urirun-home.png"),
         "recommendation": "Verify get.urirun.com renders install instructions for Linux, Windows and macOS without browser console or network failures.",
     }
@@ -50,12 +52,11 @@ def test_get_urirun_home_page_browser_smoke():
             SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
             page.screenshot(path=report["screenshot"], full_page=True)
         finally:
-            report["console_errors"] = events["console_errors"]
-            report["failed_requests"] = events["failed_requests"]
+            report.update(classify_browser_events(events))
             write_json_report("get-urirun-site.json", report)
             browser.close()
 
     assert report["http_status"] and 200 <= int(report["http_status"]) < 400
     assert all(report["content_checks"].values()), json.dumps(report["content_checks"], indent=2)
-    assert report["console_errors"] == []
-    assert report["failed_requests"] == []
+    assert report["critical_console_errors"] == []
+    assert report["critical_failed_requests"] == []

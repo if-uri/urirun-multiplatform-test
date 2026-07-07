@@ -12,7 +12,16 @@ from urllib.parse import urljoin
 
 import pytest
 
+from tests.deployment_bundle import (
+    artifact_record,
+    build_manifest,
+    create_deployment_bundle,
+    diff_manifests,
+    discover_artifacts,
+    validate_bundle,
+)
 from tests.gui_utils import current_system, fetch_text, write_json_report
+from tests.local_dev_site import clone_checkout, copy_bundle_into_checkout, detect_dev_server, start_detected_server
 
 
 pytestmark = pytest.mark.skipif(
@@ -67,6 +76,9 @@ def _build_python_artifacts(source: Path, artifact_dir: Path) -> tuple[subproces
     dist_dir = package_dir / "dist"
     if dist_dir.exists():
         shutil.rmtree(dist_dir)
+    for stale in artifact_dir.glob("urirun-*"):
+        if stale.is_file():
+            stale.unlink()
     result = subprocess.run(
         [sys.executable, "-m", "build", "--outdir", str(artifact_dir)],
         cwd=package_dir,
@@ -134,6 +146,17 @@ def _simulate_local_deployment(artifact_dir: Path, artifacts: list[dict]) -> Pat
     return deploy_dir
 
 
+def _version_from_source(source: Path) -> str | None:
+    version_file = source / "VERSION"
+    if version_file.exists():
+        return version_file.read_text(encoding="utf-8").strip()
+    return None
+
+
+def _deployment_bundle_dir() -> Path:
+    return REPORT_DIR / "deployment-bundle"
+
+
 def _production_artifact_refs(text: str, base_url: str) -> list[str]:
     refs = []
     for token in text.replace('"', " ").replace("'", " ").split():
@@ -164,6 +187,8 @@ def test_build_product_artifacts_and_local_deployment_simulation():
         "build_stderr": "",
         "local_deployment_dir": None,
         "local_deployment_manifest": None,
+        "deployment_bundle_dir": str(_deployment_bundle_dir()),
+        "deployment_bundle_report": None,
         "external_requirements": [],
         "recommendation": "Use URIRUN_DEPLOYMENT_MODE=local-simulated for CI-safe validation; wire production deployment only in trusted CI with explicit credentials.",
     }
@@ -192,7 +217,25 @@ def test_build_product_artifacts_and_local_deployment_simulation():
     deploy_dir = _simulate_local_deployment(artifact_dir, artifacts)
     report["local_deployment_dir"] = str(deploy_dir)
     report["local_deployment_manifest"] = str(deploy_dir / "artifacts" / "manifest.json")
+    meta = _install_meta()
+    records = discover_artifacts(artifact_dir)
+    manifest = build_manifest(
+        product="urirun",
+        version=_version_from_source(source),
+        repo_url=meta.get("repo_url") or os.environ.get("URIRUN_REPO_URL"),
+        ref=meta.get("ref") or os.environ.get("URIRUN_REF"),
+        revision=meta.get("revision"),
+        artifacts=records,
+    )
+    bundle_report = create_deployment_bundle(
+        artifact_dir=artifact_dir,
+        bundle_dir=_deployment_bundle_dir(),
+        manifest=manifest,
+        artifacts=records,
+    )
+    report["deployment_bundle_report"] = bundle_report
     write_json_report("product-artifacts-deployment.json", report)
+    assert bundle_report["promotion_candidate"], bundle_report
 
 
 @pytest.mark.user_journey
@@ -208,6 +251,9 @@ def test_production_and_local_dev_site_artifact_references():
         "production_product_artifact_refs": [],
         "local_dev": None,
         "comparison": {},
+        "diff_report": {},
+        "installer_links": [],
+        "artifact_endpoint_status": {},
         "diagnostic_artifacts": {
             "report": str(REPORT_DIR / "site-artifact-comparison.json"),
         },
@@ -221,6 +267,10 @@ def test_production_and_local_dev_site_artifact_references():
         report["production_status"] = status
         report["production_error"] = error
         report["production_product_artifact_refs"] = _production_artifact_refs(text, production_url)
+        report["installer_links"] = [ref for ref in report["production_product_artifact_refs"] if ref.lower().endswith((".ps1", ".sh"))]
+        for ref in report["production_product_artifact_refs"][:20]:
+            endpoint_status, _, endpoint_error = fetch_text(ref, timeout=10)
+            report["artifact_endpoint_status"][ref] = {"status": endpoint_status, "error": endpoint_error}
         write_json_report("site-artifact-comparison.json", report)
         assert status and 200 <= status < 400
 
@@ -235,28 +285,54 @@ def test_production_and_local_dev_site_artifact_references():
             report["local_dev"] = {"repo": repo, "ref": ref, "clone_exit_code": clone.returncode, "stdout": clone.stdout, "stderr": clone.stderr}
             write_json_report("site-artifact-comparison.json", report)
             pytest.xfail("Local get-urirun-com checkout could not be cloned on this runner.")
-        artifacts = _artifact_dir()
-        target = checkout / "artifacts"
-        target.mkdir(parents=True, exist_ok=True)
-        for item in artifacts.glob("*"):
-            if item.is_file():
-                shutil.copy2(item, target / item.name)
-        # The test harness cannot know every framework-specific dev server command
-        # in get-urirun-com. It prepares the checkout plus product artifacts and
-        # serves a deterministic local deployment simulation for pre-production checks.
-        deploy_dir = _simulate_local_deployment(artifacts, [
-            {"name": p.name, "path": str(p), "size": p.stat().st_size, "sha256": _sha256(p), "kind": p.suffix.lstrip("."), "platform": "local"}
-            for p in artifacts.glob("*") if p.is_file() and p.name != "manifest.json"
+        bundle_dir = _deployment_bundle_dir()
+        copied = copy_bundle_into_checkout(bundle_dir, checkout)
+        plan = detect_dev_server(checkout)
+        local_dev_report = {
+            "repo": repo,
+            "ref": ref,
+            "checkout": str(checkout),
+            "copied": copied,
+            "dev_server_plan": plan.as_dict(),
+            "fetch": None,
+            "recommendation": "Add a stable get-urirun-com dev/start command or static index.html contract if status is integration_required.",
+        }
+        process = None
+        if plan.status == "detected":
+            try:
+                process, local_url = start_detected_server(plan)
+                status, text, error = fetch_text(local_url, timeout=30)
+                local_dev_report["fetch"] = {"url": local_url, "status": status, "error": error, "body_excerpt": text[:1000]}
+            finally:
+                if process is not None:
+                    process.terminate()
+        write_json_report("local-dev-site.json", local_dev_report)
+        if plan.status != "detected":
+            report["local_dev"] = local_dev_report
+            write_json_report("site-artifact-comparison.json", report)
+            pytest.xfail(f"Local get-urirun-com dev server integration required: {plan.reason}")
+
+        artifact_dir = _artifact_dir()
+        deploy_dir = _simulate_local_deployment(artifact_dir, [
+            artifact_record(p).as_manifest_item()
+            for p in artifact_dir.glob("*") if p.is_file() and p.name != "manifest.json"
         ])
         report["local_dev"] = {
             "repo": repo,
             "ref": ref,
             "checkout": str(checkout),
             "local_deployment_dir": str(deploy_dir),
-            "note": "The harness prepared product artifacts for the local dev site checkout; actual project-specific dev server wiring is an integration point.",
+            "dev_server_plan": plan.as_dict(),
+            "fetch": local_dev_report["fetch"],
         }
+        bundle_validation = validate_bundle(bundle_dir)
+        local_manifest_path = bundle_dir / "manifest.json"
+        if local_manifest_path.exists():
+            local_manifest = json.loads(local_manifest_path.read_text(encoding="utf-8"))
+            report["diff_report"] = diff_manifests(local_manifest, {"artifacts": [], "version": None, "ref": None, "revision": None})
         report["comparison"] = {
             "production_refs_count": len(report["production_product_artifact_refs"]),
             "local_product_artifacts_count": len(list((REPORT_DIR / "local-deployment" / "artifacts").glob("*"))),
+            "deployment_bundle": bundle_validation,
         }
         write_json_report("site-artifact-comparison.json", report)

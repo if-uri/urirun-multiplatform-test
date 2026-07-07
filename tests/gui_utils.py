@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -55,6 +56,67 @@ def write_json_report(name: str, payload: dict[str, Any]) -> Path:
     path = REPORT_DIR / name
     path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
     return path
+
+
+def _patterns_from_env(name: str) -> list[re.Pattern[str]]:
+    raw = os.environ.get(name, "")
+    patterns = [part.strip() for part in raw.splitlines() if part.strip()]
+    if not patterns and raw.strip():
+        patterns = [part.strip() for part in raw.split(";") if part.strip()]
+    return [re.compile(pattern) for pattern in patterns]
+
+
+def is_allowed_message(message: str, patterns: list[re.Pattern[str]]) -> bool:
+    return any(pattern.search(message) for pattern in patterns)
+
+
+def split_allowed_messages(messages: list[str], patterns: list[re.Pattern[str]]) -> tuple[list[str], list[str]]:
+    accepted: list[str] = []
+    critical: list[str] = []
+    for message in messages:
+        if is_allowed_message(message, patterns):
+            accepted.append(message)
+        else:
+            critical.append(message)
+    return accepted, critical
+
+
+def classify_browser_events(events: dict[str, list[str]]) -> dict[str, list[str]]:
+    accepted_console, critical_console = split_allowed_messages(
+        events.get("console_errors", []),
+        _patterns_from_env("URIRUN_GUI_ALLOWED_CONSOLE_ERROR_PATTERNS"),
+    )
+    accepted_requests, critical_requests = split_allowed_messages(
+        events.get("failed_requests", []),
+        _patterns_from_env("URIRUN_GUI_ALLOWED_NETWORK_ERROR_PATTERNS"),
+    )
+    return {
+        "accepted_console_errors": accepted_console,
+        "critical_console_errors": critical_console,
+        "accepted_failed_requests": accepted_requests,
+        "critical_failed_requests": critical_requests,
+    }
+
+
+def retention_mode(name: str, default: str) -> str:
+    mode = os.environ.get(name, default).strip().lower()
+    if mode not in {"always", "on-failure", "off"}:
+        raise ValueError(f"{name} must be always, on-failure, or off; got {mode!r}")
+    return mode
+
+
+def should_keep_artifact(mode: str, *, failed: bool) -> bool:
+    return mode == "always" or (mode == "on-failure" and failed)
+
+
+def selector_candidates(name: str) -> list[str]:
+    slug = name.lower().replace(" ", "-")
+    return [
+        f'[data-testid="{slug}"]',
+        f'[aria-label="{name}"]',
+        f'role=button[name=/{re.escape(name)}/i]',
+        f'text=/{re.escape(name)}/i',
+    ]
 
 
 def sha256_file(path: Path) -> str:

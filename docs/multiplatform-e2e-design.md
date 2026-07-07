@@ -28,6 +28,7 @@ site, installed by a user, launched as CLI, and exercised through the GUI.
   `https://get.urirun.com/`.
 - Controlled installer flow from the public install site.
 - Product artifact build and local deployment simulation.
+- Deployment-bundle dry-run promotion candidate.
 - Optional comparison with a local checkout of
   `https://github.com/if-uri/get-urirun-com`.
 - GUI/web UI test using `urirun host dashboard serve` and Playwright clicks.
@@ -49,7 +50,8 @@ site, installed by a user, launched as CLI, and exercised through the GUI.
 flowchart TD
     A[Source: if-uri/urirun] --> B[Build urirun]
     B --> C[Product artifacts: exe/packages/installers]
-    C --> D[Deployment or local deployment simulation]
+    C --> DB[Deployment bundle: manifest, checksums, site stub]
+    DB --> D[Deployment or local deployment simulation]
     D --> E1[Production site: get.urirun.com]
     D --> E2[Local dev site: get-urirun-com]
     E1 --> F1[User downloads/installs urirun]
@@ -71,9 +73,12 @@ urirun source
 build/package
     |
     v
-product artifacts (.exe/packages/installers)
+product artifacts (.whl/.tar.gz, future exe/packages/installers)
     |
-    +--> production get.urirun.com
+    v
+deployment-bundle dry-run candidate
+    |
+    +--> trusted production promotion job
     |
     +--> local dev get-urirun-com
              |
@@ -101,6 +106,26 @@ installer references it exposes. The local-dev variant clones
 `get-urirun-com`, attaches locally built product artifacts, and records what
 must be wired into the real site-specific dev server.
 
+## Deployment Bundle
+
+```mermaid
+flowchart TD
+    A[Built wheel/sdist] --> B["reports/deployment-bundle/artifacts/"]
+    B --> C["manifest.json"]
+    B --> D["checksums/SHA256SUMS"]
+    C --> E["deployment-report.json"]
+    D --> E
+    B --> F["site/index.html"]
+    E --> G{Promotion candidate?}
+    G -->|yes| H[Trusted external deployment job]
+    G -->|no| I[Fix bundle validation problems]
+```
+
+The bundle is intentionally a local intermediate format. This repository can
+mark a bundle as a dry-run promotion candidate, but it does not publish to
+production or claim native platform installers exist before the main `urirun`
+repository produces them.
+
 ## Product Artifact Flow
 
 ```mermaid
@@ -109,8 +134,8 @@ flowchart TD
     S --> T[Build sdist]
     W --> M[manifest.json with version and sha256]
     T --> M
-    M --> D[local-deployment/artifacts]
-    D --> SITE[local deployment simulation page]
+    M --> D[deployment-bundle]
+    D --> SITE[local site stub and local-dev checkout wiring]
 ```
 
 Product artifacts are files users may install or download: wheels, sdists,
@@ -133,12 +158,17 @@ Playwright traces, GUI logs, stdout/stderr, JSON reports and JUnit XML.
 - `URIRUN_ARTIFACTS_DIR`, optional product artifact directory
 - `URIRUN_DEPLOYMENT_MODE`: `production`, `local-simulated`, or `skip`
 - `URIRUN_GUI_E2E`: `0` or `1`
+- `URIRUN_GUI_ALLOWED_CONSOLE_ERROR_PATTERNS`: regex allowlist for accepted console errors
+- `URIRUN_GUI_ALLOWED_NETWORK_ERROR_PATTERNS`: regex allowlist for accepted failed requests
+- `URIRUN_PLAYWRIGHT_TRACE_MODE`: `always`, `on-failure`, or `off`
+- `URIRUN_PLAYWRIGHT_VIDEO_MODE`: `always`, `on-failure`, or `off`
 
 ## Outputs
 
 Product artifact outputs:
 
 - `reports/product-artifacts/`
+- `reports/deployment-bundle/`
 - `reports/local-deployment/artifacts/`
 - `reports/local-deployment/artifacts/manifest.json`
 - installer downloads under `reports/installer/`
@@ -146,6 +176,8 @@ Product artifact outputs:
 Diagnostic test outputs:
 
 - `reports/*.json`
+- `reports/validation-report.json`
+- `reports/ci-summary.md`
 - `reports/*.stdout.log`
 - `reports/*.stderr.log`
 - `reports/screenshots/`
@@ -157,6 +189,7 @@ Diagnostic test outputs:
 - Existing CLI, registry, permissions, connector and HTTP transport checks.
 - Product artifact build for the Python wheel/sdist when the target source tree
   and build dependencies are available.
+- Deployment-bundle validation and dry-run promotion candidate reporting.
 - Local deployment simulation from locally built artifacts.
 
 ## Experimental
@@ -175,8 +208,12 @@ Diagnostic test outputs:
   explicitly provides credentials and approval.
 - Local `get-urirun-com` dev serving is reported as an integration point when
   the repository does not expose a generic static server contract.
+- Native Windows/Linux/macOS product artifacts remain external blockers until
+  `if-uri/urirun` provides build outputs for them.
 
 ## Additional Documentation
 
 - **[IMPLEMENTED.md](IMPLEMENTED.md)** - Detailed description of what has been implemented in the test harness
 - **[TODO.md](TODO.md)** - Structured plan for remaining work and future improvements
+- **[VALIDATION_REPORT.md](VALIDATION_REPORT.md)** - Generated self-validation table
+- **[gui-test-contract.md](gui-test-contract.md)** - Dashboard selector and browser diagnostic contract

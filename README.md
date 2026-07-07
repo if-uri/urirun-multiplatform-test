@@ -34,6 +34,10 @@ Windows and macOS are not treated as ordinary Docker containers. They are tested
 - `URIRUN_ARTIFACTS_DIR` - optional directory for product artifacts; default `reports/product-artifacts`.
 - `URIRUN_DEPLOYMENT_MODE` - `local-simulated` by default for safe CI; `production` is reported as an external CI/CD requirement.
 - `URIRUN_GUI_E2E` - set `0` to skip GUI browser tests.
+- `URIRUN_GUI_ALLOWED_CONSOLE_ERROR_PATTERNS` - optional regex allowlist for accepted browser console errors; default is empty and restrictive.
+- `URIRUN_GUI_ALLOWED_NETWORK_ERROR_PATTERNS` - optional regex allowlist for accepted failed browser requests; default is empty and restrictive.
+- `URIRUN_PLAYWRIGHT_TRACE_MODE` - `always`, `on-failure`, or `off`; default `on-failure`.
+- `URIRUN_PLAYWRIGHT_VIDEO_MODE` - `always`, `on-failure`, or `off`; default `off`.
 
 ## Local Run
 
@@ -70,6 +74,14 @@ To keep reports outside the container:
 ```bash
 docker run --rm -v "$PWD/reports:/workspace/reports" urirun-linux-test
 ```
+
+Optional Linux Compose matrix:
+
+```bash
+docker compose -f docker/compose/docker-compose.yml run --rm py312-node22
+```
+
+The Compose matrix is intentionally not part of the default CI path. It provides extra Linux coverage for Python 3.10/3.11/3.12 and Node 20/22 without pretending to test Windows or macOS through Docker.
 
 ## GitHub Actions
 
@@ -112,6 +124,16 @@ packages, wheels, sdists, `.exe` files, checksums and manifests. Screenshots,
 Playwright traces, stdout/stderr logs, JSON reports and JUnit XML are diagnostic
 test artifacts, not product artifacts.
 
+The local promotion intermediate format is `reports/deployment-bundle/`:
+
+- `manifest.json`
+- `artifacts/`
+- `checksums/SHA256SUMS`
+- `site/index.html`
+- `deployment-report.json`
+
+The bundle is a dry-run promotion candidate only. Production deployment remains a trusted external CI/CD job with explicit credentials, signing, and approval.
+
 Run only the user journey locally:
 
 ```bash
@@ -143,6 +165,8 @@ Architecture and flow diagrams: [docs/multiplatform-e2e-design.md](docs/multipla
 
 - **[docs/IMPLEMENTED.md](docs/IMPLEMENTED.md)** - Detailed description of implemented test areas, platform coverage, environment variables, and reports
 - **[docs/TODO.md](docs/TODO.md)** - Structured plan for remaining work, critical TODOs, and external blockers
+- **[docs/VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md)** - Generated self-validation status table
+- **[docs/gui-test-contract.md](docs/gui-test-contract.md)** - Dashboard selector, browser error, screenshot, trace, and video contract
 
 ## Self-Hosted Runners
 
@@ -164,9 +188,12 @@ Generated reports live in `reports/`:
 - `transport-*.json` - structured transport failure reports with server/client logs.
 - `*.stdout.log` and `*.stderr.log` - server process logs for transport tests.
 - `product-artifacts/` - product artifacts built by the user journey profile.
-- `local-deployment/artifacts/manifest.json` - local deployment simulation manifest with product artifact checksums.
+- `deployment-bundle/` - promotion-candidate bundle with manifest, artifacts, checksums, site stub, and deployment report.
+- `local-deployment/artifacts/manifest.json` - legacy local deployment simulation manifest with product artifact checksums.
 - `screenshots/` and `traces/` - diagnostic Playwright artifacts, not product artifacts.
-- `get-urirun-site.json`, `get-urirun-install.json`, `gui-user-journey.json`, `product-artifacts-deployment.json`, `site-artifact-comparison.json` - user journey reports.
+- `validation-report.json` - generated self-validation report.
+- `ci-summary.md` - Markdown report intended for GitHub Actions step summary.
+- `get-urirun-site.json`, `get-urirun-install.json`, `gui-user-journey.json`, `product-artifacts-deployment.json`, `local-dev-site.json`, `site-artifact-comparison.json` - user journey reports.
 
 Transport failure reports include transport, host, port, server command, client command, server stdout/stderr, client stdout/stderr, exit code, OS, Python version, `urirun` version, and a repair recommendation.
 
@@ -187,6 +214,8 @@ Transport failure reports include transport, host, port, server command, client 
 - Experimental MCP stdio transport smoke test.
 - Experimental gRPC transport smoke test when optional `grpcio` is available.
 - Self-hosted runner documentation for Windows, macOS, and Linux.
+- Deployment-bundle dry-run promotion candidate generation.
+- Configurable GUI console/network allowlists and Playwright trace/video retention.
 
 ## Current Tests
 
@@ -226,8 +255,8 @@ Implemented coverage includes:
 ## Remaining Work In This Repository
 
 - Optional richer transport logs, for example timing and request/response excerpts for successful HTTP/MCP/gRPC runs.
-- Optional Docker Compose matrix coverage that mirrors more of `urirun/examples/matrix` without pulling unrelated language SDK runtimes into every CI run.
-- Optional self-hosted runner workflow variants that use organization-specific runner labels.
+- Real platform installer artifact production remains outside this repository until the main `urirun` build pipeline provides those artifacts.
+- Real local `get-urirun-com` serving remains PARTIAL until that repository exposes a stable dev/static server contract.
 
 ## External Blockers In Main `urirun`
 

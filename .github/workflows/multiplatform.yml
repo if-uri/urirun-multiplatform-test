@@ -114,17 +114,15 @@ jobs:
         if: always()
         shell: bash
         run: |
-          echo "## urirun multiplatform E2E: $URIRUN_TEST_PROFILE" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- OS: ${{ matrix.os }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- URIRUN_REPO_URL: $URIRUN_REPO_URL" >> "$GITHUB_STEP_SUMMARY"
-          echo "- URIRUN_REF: $URIRUN_REF" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Reports artifact: reports-${{ matrix.profile }}" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f reports/summary.json ]; then
+          if [ -f reports/ci-summary.md ]; then
+            cat reports/ci-summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## urirun multiplatform E2E: $URIRUN_TEST_PROFILE" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo '```json' >> "$GITHUB_STEP_SUMMARY"
-            cat reports/summary.json >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "- OS: ${{ matrix.os }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- URIRUN_REPO_URL: $URIRUN_REPO_URL" >> "$GITHUB_STEP_SUMMARY"
+            echo "- URIRUN_REF: $URIRUN_REF" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Reports artifact: reports-${{ matrix.profile }}" >> "$GITHUB_STEP_SUMMARY"
           fi
 
   installer-gui-e2e:
@@ -225,16 +223,13 @@ jobs:
         if: always()
         shell: bash
         run: |
-          echo "## urirun installer + GUI E2E: ${{ matrix.profile }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "- OS: ${{ matrix.os }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Product artifacts: reports/product-artifacts and reports/local-deployment/artifacts" >> "$GITHUB_STEP_SUMMARY"
-          echo "- Diagnostic test artifacts: reports/screenshots, reports/traces, logs, JSON, JUnit" >> "$GITHUB_STEP_SUMMARY"
-          echo "- GET_URIRUN_SITE_MODE: $GET_URIRUN_SITE_MODE" >> "$GITHUB_STEP_SUMMARY"
-          echo "- GET_URIRUN_ALLOW_REMOTE_INSTALL: $GET_URIRUN_ALLOW_REMOTE_INSTALL" >> "$GITHUB_STEP_SUMMARY"
-          if [ -f reports/summary.json ]; then
+          if [ -f reports/ci-summary.md ]; then
+            cat reports/ci-summary.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## urirun installer + GUI E2E: ${{ matrix.profile }}" >> "$GITHUB_STEP_SUMMARY"
             echo "" >> "$GITHUB_STEP_SUMMARY"
-            echo '```json' >> "$GITHUB_STEP_SUMMARY"
-            cat reports/summary.json >> "$GITHUB_STEP_SUMMARY"
-            echo '```' >> "$GITHUB_STEP_SUMMARY"
+            echo "- OS: ${{ matrix.os }}" >> "$GITHUB_STEP_SUMMARY"
+            echo "- Product artifacts: reports/product-artifacts and reports/deployment-bundle" >> "$GITHUB_STEP_SUMMARY"
+            echo "- GET_URIRUN_SITE_MODE: $GET_URIRUN_SITE_MODE" >> "$GITHUB_STEP_SUMMARY"
+            echo "- GET_URIRUN_ALLOW_REMOTE_INSTALL: $GET_URIRUN_ALLOW_REMOTE_INSTALL" >> "$GITHUB_STEP_SUMMARY"
           fi

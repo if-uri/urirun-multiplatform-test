@@ -1,0 +1,36 @@
+services:
+  py310-node20:
+    build:
+      context: ../..
+      dockerfile: docker/compose/python-node.Dockerfile
+      args:
+        PYTHON_VERSION: "3.10"
+        NODE_MAJOR: "20"
+    volumes:
+      - ../../reports:/workspace/reports
+    environment:
+      URIRUN_TEST_PROFILE: linux-compose-py310-node20
+
+  py311-node22:
+    build:
+      context: ../..
+      dockerfile: docker/compose/python-node.Dockerfile
+      args:
+        PYTHON_VERSION: "3.11"
+        NODE_MAJOR: "22"
+    volumes:
+      - ../../reports:/workspace/reports
+    environment:
+      URIRUN_TEST_PROFILE: linux-compose-py311-node22
+
+  py312-node22:
+    build:
+      context: ../..
+      dockerfile: docker/compose/python-node.Dockerfile
+      args:
+        PYTHON_VERSION: "3.12"
+        NODE_MAJOR: "22"
+    volumes:
+      - ../../reports:/workspace/reports
+    environment:
+      URIRUN_TEST_PROFILE: linux-compose-py312-node22

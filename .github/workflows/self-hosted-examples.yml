@@ -1,0 +1,55 @@
+name: self-hosted runner examples
+
+on:
+  workflow_dispatch:
+    inputs:
+      profile:
+        description: "Example profile to run"
+        required: true
+        default: "linux"
+        type: choice
+        options:
+          - linux
+          - windows
+          - macos
+
+jobs:
+  linux:
+    if: github.event.inputs.profile == 'linux'
+    runs-on: [self-hosted, linux, urirun]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python scripts/run_tests.py
+
+  windows:
+    if: github.event.inputs.profile == 'windows'
+    runs-on: [self-hosted, windows, urirun]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - shell: pwsh
+        run: python scripts\run_tests.py
+
+  macos:
+    if: github.event.inputs.profile == 'macos'
+    runs-on: [self-hosted, macos, urirun]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: python scripts/run_tests.py

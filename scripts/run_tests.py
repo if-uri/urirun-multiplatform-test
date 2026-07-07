@@ -25,6 +25,7 @@ def should_install_gui_deps(argv: list[str]) -> bool:
     if "installer-gui" in profile or profile == "user-journey":
         return True
     gui_tests = {
+        "test_product_artifacts_deployment.py",
         "test_get_urirun_site.py",
         "test_get_urirun_install_flow.py",
         "test_gui_user_journey.py",
@@ -61,7 +62,17 @@ def main(argv: list[str] | None = None) -> int:
         test_rc = exc.returncode
     finally:
         try:
+            run([str(bin_path("python")), str(ROOT / "scripts" / "validate_repo.py")], env=env)
+        except subprocess.CalledProcessError as exc:
+            if test_rc == 0:
+                test_rc = exc.returncode
+        try:
             run([str(bin_path("python")), str(ROOT / "scripts" / "collect_report.py")], env=env)
+        except subprocess.CalledProcessError as exc:
+            if test_rc == 0:
+                test_rc = exc.returncode
+        try:
+            run([str(bin_path("python")), str(ROOT / "scripts" / "ci_summary.py")], env=env)
         except subprocess.CalledProcessError as exc:
             if test_rc == 0:
                 test_rc = exc.returncode

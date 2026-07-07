@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import stat
 import subprocess
 import sys
 import time
@@ -43,6 +44,17 @@ def run_capture(command: list[str], cwd: Path | None = None) -> subprocess.Compl
     return subprocess.run(command, cwd=cwd or ROOT, text=True, capture_output=True)
 
 
+def remove_tree(path: Path) -> None:
+    def on_error(func, target, exc_info):
+        try:
+            os.chmod(target, stat.S_IWRITE)
+            func(target)
+        except Exception:
+            raise exc_info[1]
+
+    shutil.rmtree(path, onerror=on_error)
+
+
 def write_install_warning(command: list[str], result: subprocess.CompletedProcess[str]) -> None:
     REPORT_DIR.mkdir(parents=True, exist_ok=True)
     existing = []
@@ -80,11 +92,11 @@ def sync_source() -> Path:
     repo_url = os.environ.get("URIRUN_REPO_URL", DEFAULT_REPO)
     ref = os.environ.get("URIRUN_REF", "main")
     if SRC.exists():
-        shutil.rmtree(SRC)
+        remove_tree(SRC)
     clone = run_capture(["git", "clone", "--depth", "1", "--branch", ref, repo_url, str(SRC)])
     if clone.returncode != 0:
         if SRC.exists():
-            shutil.rmtree(SRC)
+            remove_tree(SRC)
         run(["git", "clone", "--no-checkout", "--filter=blob:none", repo_url, str(SRC)])
         fetch = run_capture(["git", "fetch", "--depth", "1", "origin", ref], cwd=SRC)
         if fetch.returncode != 0:

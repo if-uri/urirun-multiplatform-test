@@ -77,6 +77,22 @@ This document describes what has been implemented in the `urirun-multiplatform-t
 - **Safe for CI**: Does not deploy to production without explicit credentials
 - **Status**: PARTIAL - Creates a simple static simulation. Does not integrate with real local get-urirun-com dev server. See TODO.md for deployment-bundle intermediate solution.
 
+### Deployment Bundle (DONE for local dry-run, PARTIAL for production)
+- **Bundle directory**: `reports/deployment-bundle/`
+- **Manifest**: `manifest.json` with product, version, repo_url, ref, revision, generated_at, artifacts, checksums, and future artifact entries
+- **Artifacts**: Built wheel/sdist copied into `artifacts/`
+- **Checksums**: `checksums/SHA256SUMS` validated against real files
+- **Site stub**: `site/index.html` exposes local artifact links
+- **Dry-run promotion**: `deployment-report.json` marks a bundle as `promotion_candidate` only when local validation passes
+- **Status**: PARTIAL for full product delivery because native `.exe`, `.deb`, `.rpm`, `.pkg`, and `.app` artifacts require external `if-uri/urirun` build pipelines.
+
+### Local get-urirun-com Dev Server Integration (PARTIAL)
+- **Checkout**: Local-dev mode can clone `GET_URIRUN_REPO_URL`
+- **Bundle wiring**: Copies `reports/deployment-bundle/` and artifacts into the checkout
+- **Stack detection**: Detects `package.json` Node projects and static HTML sites
+- **Integration report**: Writes `reports/local-dev-site.json`
+- **Xfail behavior**: If no stable dev/static command is detected, the user journey reports `integration_required` and xfails instead of hard failing
+
 ### Production `get.urirun.com` Browser Smoke
 - **Playwright browser test**: Open production site in Chromium
 - **Content checks**: Verify mentions of urirun, Windows, Linux, macOS, install
@@ -105,13 +121,15 @@ This document describes what has been implemented in the `urirun-multiplatform-t
 - **Dashboard start**: `urirun host dashboard serve` with isolated project
 - **Health check**: Wait for `/api/health` endpoint
 - **Browser navigation**: Open dashboard in Chromium
-- **UI interaction**: Click visible UI controls (Chat, Nodes, Tasks, Services, Artifacts)
-- **Console monitoring**: Detect JavaScript console errors
-- **Network monitoring**: Detect failed network requests
+- **UI interaction**: Prefer `data-testid`, then `aria-label`, then role/name, then fallback text selectors for Chat, Nodes, Tasks, Services, Artifacts
+- **Console monitoring**: Split accepted and critical JavaScript console errors
+- **Network monitoring**: Split accepted and critical failed network requests
+- **Allowlist configuration**: `URIRUN_GUI_ALLOWED_CONSOLE_ERROR_PATTERNS` and `URIRUN_GUI_ALLOWED_NETWORK_ERROR_PATTERNS`
 - **Screenshot capture**: Screenshots before and after clicks
-- **Trace recording**: Playwright trace with screenshots, snapshots, sources
+- **Trace recording**: Playwright trace with screenshots, snapshots, sources; retention controlled by `URIRUN_PLAYWRIGHT_TRACE_MODE`
+- **Video recording**: Optional Playwright video retention controlled by `URIRUN_PLAYWRIGHT_VIDEO_MODE`
 - **Process logs**: Capture stdout/stderr from dashboard process
-- **Status**: EXPERIMENTAL - Marked as experimental due to evolving dashboard UI. Uses simple text-based selectors that may break. See TODO.md for GUI test contract requirements.
+- **Status**: EXPERIMENTAL - Marked as experimental due to evolving dashboard UI and external dashboard selector/error-contract gaps.
 
 ### Reports and Diagnostics
 - **summary.json**: OS, Python, Node, urirun, install metadata, artifact list
@@ -121,6 +139,8 @@ This document describes what has been implemented in the `urirun-multiplatform-t
 - ***.stdout.log and *.stderr.log**: Server process logs for transport tests
 - **urirun-errors.jsonl**: Error log file for policy denials and errors
 - **JSON failure reports**: Per-test failure reports with system info and recommendations
+- **validation-report.json**: Self-validation rows for docs, markers, bundle, GUI policy, local-dev integration, and blockers
+- **ci-summary.md**: Markdown summary for GitHub Actions step summaries
 
 ### GitHub Actions Matrix
 - **linux-docker**: Ubuntu-latest with Docker container
@@ -219,6 +239,10 @@ Diagnostic artifacts are test outputs for debugging and CI:
 - **URIRUN_ARTIFACTS_DIR**: Optional directory for product artifacts; default `reports/product-artifacts`
 - **URIRUN_DEPLOYMENT_MODE**: `local-simulated` by default for safe CI; `production` is external CI/CD requirement
 - **URIRUN_GUI_E2E**: Set `0` to skip GUI browser tests; default `1` in installer-gui-e2e profile
+- **URIRUN_GUI_ALLOWED_CONSOLE_ERROR_PATTERNS**: Optional regex allowlist for accepted console errors
+- **URIRUN_GUI_ALLOWED_NETWORK_ERROR_PATTERNS**: Optional regex allowlist for accepted failed requests
+- **URIRUN_PLAYWRIGHT_TRACE_MODE**: `always`, `on-failure`, or `off`; default `on-failure`
+- **URIRUN_PLAYWRIGHT_VIDEO_MODE**: `always`, `on-failure`, or `off`; default `off`
 
 ### Internal/Test Configuration
 - **URIRUN_USER_JOURNEY_ACTIVE**: Set to `1` by `scripts/run_tests.py` when user journey tests are targeted
@@ -233,6 +257,8 @@ Diagnostic artifacts are test outputs for debugging and CI:
 - **summary.json**: OS, Python, Node, urirun version, install metadata, artifact list
 - **junit.xml**: pytest JUnit report for CI systems
 - **install-warning.json**: Dependency resolution fallback warnings
+- **validation-report.json**: Self-validation JSON report
+- **ci-summary.md**: Human-readable CI summary generated after tests
 
 ### Transport Reports
 - **transport-http-node.json**: HTTP transport test report
@@ -245,12 +271,14 @@ Diagnostic artifacts are test outputs for debugging and CI:
 - **get-urirun-install.json**: Installer download and execution report
 - **gui-user-journey.json**: GUI dashboard user journey report
 - **product-artifacts-deployment.json**: Product artifact build and local deployment report
+- **local-dev-site.json**: Local get-urirun-com checkout, bundle wiring, dev server detection, and fetch report
 - **site-artifact-comparison.json**: Production vs local dev site artifact comparison
 
 ### Diagnostic Artifacts
 - **reports/screenshots/**: Playwright screenshots (get-urirun-home.png, gui-home.png, gui-after-clicks.png)
 - **reports/traces/**: Playwright trace files (gui-user-journey.zip)
 - **reports/product-artifacts/**: Built product artifacts (wheel, sdist, manifest.json)
+- **reports/deployment-bundle/**: Dry-run promotion bundle (manifest, artifacts, checksums, site, deployment-report)
 - **reports/local-deployment/**: Local deployment simulation (artifacts/, index.html)
 - **reports/installer/**: Downloaded installer scripts (get-urirun-installer.ps1, get-urirun-installer.sh)
 - **reports/*.stdout.log**: Server process stdout logs
@@ -296,6 +324,13 @@ With reports outside container:
 ```bash
 docker run --rm -v "$PWD/reports:/workspace/reports" urirun-linux-test
 ```
+
+### Optional Linux Compose Matrix
+```bash
+docker compose -f docker/compose/docker-compose.yml run --rm py312-node22
+```
+
+Other optional services cover Python 3.10/Node 20 and Python 3.11/Node 22. This is extra Linux coverage only; Windows and macOS remain runner-based.
 
 ## Stability Markers
 
