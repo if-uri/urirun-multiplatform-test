@@ -169,7 +169,11 @@ def _production_artifact_refs(text: str, base_url: str) -> list[str]:
 
 
 def _manifest_candidates(base_url: str, artifact_refs: list[str]) -> list[str]:
-    candidates = [urljoin(base_url, "manifest.json"), urljoin(base_url, "artifacts/manifest.json")]
+    candidates = [
+        urljoin(base_url, "manifest.json"),
+        urljoin(base_url, "deployment-bundle/manifest.json"),
+        urljoin(base_url, "artifacts/manifest.json"),
+    ]
     candidates.extend(ref for ref in artifact_refs if ref.lower().endswith("manifest.json"))
     deduped: list[str] = []
     for candidate in candidates:
@@ -200,6 +204,28 @@ def _fetch_first_manifest(base_url: str, artifact_refs: list[str]) -> dict:
         "validation_problems": ["production manifest contract is not discoverable"],
         "attempts": attempts,
     }
+
+
+def _browser_smoke(url: str) -> dict:
+    try:
+        from playwright.sync_api import sync_playwright
+    except Exception as exc:
+        return {"status": "not_run", "reason": f"Playwright unavailable: {exc}"}
+    with sync_playwright() as pw:
+        browser = pw.chromium.launch()
+        page = browser.new_page()
+        try:
+            response = page.goto(url, wait_until="networkidle", timeout=30_000)
+            title = page.title()
+            body = page.locator("body").inner_text(timeout=10_000)[:1000]
+            return {
+                "status": "ok" if response and 200 <= response.status < 400 else "failed",
+                "http_status": None if response is None else response.status,
+                "title": title,
+                "body_excerpt": body,
+            }
+        finally:
+            browser.close()
 
 
 @pytest.mark.user_journey
@@ -347,6 +373,7 @@ def test_production_and_local_dev_site_artifact_references():
                 process, local_url = start_detected_server(plan)
                 status, text, error = fetch_text(local_url, timeout=30)
                 local_dev_report["fetch"] = {"url": local_url, "status": status, "error": error, "body_excerpt": text[:1000]}
+                local_dev_report["browser_smoke"] = _browser_smoke(local_url)
             finally:
                 if process is not None:
                     process.terminate()

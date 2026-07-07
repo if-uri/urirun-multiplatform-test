@@ -69,6 +69,22 @@ def bullet_json(name: str, payload: dict[str, Any] | list[Any] | None) -> list[s
     return [line]
 
 
+def report_status(payload: dict[str, Any] | list[Any] | None) -> str:
+    if payload is None:
+        return "not present"
+    if isinstance(payload, list):
+        return f"{len(payload)} entries"
+    if payload.get("external_blockers"):
+        return "XFAIL / EXTERNAL BLOCKER"
+    if payload.get("critical_console_errors") or payload.get("critical_failed_requests"):
+        return "FAILED"
+    if payload.get("comparison", {}).get("status"):
+        return str(payload["comparison"]["status"])
+    if payload.get("page_status") and not payload.get("exit_code"):
+        return "download/hash only" if payload.get("installer_sha256") else "present"
+    return str(payload.get("status") or payload.get("deployment_mode") or payload.get("site_mode") or payload.get("profile") or "present")
+
+
 def build_summary() -> str:
     lines = ["# urirun multiplatform E2E summary", ""]
     summary = read_json(REPORT_DIR / "summary.json")
@@ -76,10 +92,13 @@ def build_summary() -> str:
     junit = junit_summary(REPORT_DIR / "junit.xml")
     cases = junit_cases(REPORT_DIR / "junit.xml")
     if isinstance(summary, dict):
+        profile = str(summary.get("profile", "unknown"))
         lines.extend([
-            f"- Profile: `{summary.get('profile', 'unknown')}`",
+            f"- Profile: `{profile}`",
             f"- urirun: `{summary.get('urirun', {}).get('stdout') or summary.get('urirun', {}).get('stderr') or 'unknown'}`",
             f"- JSON reports: {', '.join(summary.get('reports', [])) or 'none'}",
+            f"- GitHub reports artifact: `reports-{profile}` or `diagnostic-reports-{profile}` depending on workflow job",
+            f"- GitHub JUnit artifact: `junit-{profile}`",
         ])
     else:
         lines.append("- `summary.json`: not present")
@@ -129,6 +148,16 @@ def build_summary() -> str:
         lines.append(f"- Deployment bundle: {deployment_report.get('status')} promotion_candidate={deployment_report.get('promotion_candidate')}")
     else:
         lines.append("- Deployment bundle: not present")
+    lines.append("")
+    lines.append("## E2E Surface Status")
+    install_report = read_json(REPORT_DIR / "get-urirun-install.json")
+    local_dev_report = read_json(REPORT_DIR / "local-dev-site.json")
+    gui_report = read_json(REPORT_DIR / "gui-user-journey.json")
+    site_report = read_json(REPORT_DIR / "site-artifact-comparison.json")
+    lines.append(f"- Install flow: {report_status(install_report)}")
+    lines.append(f"- Local dev site: {report_status(local_dev_report)}")
+    lines.append(f"- GUI: {report_status(gui_report)}")
+    lines.append(f"- Site comparison: {report_status(site_report)}")
     lines.append("")
     lines.append("## User Journey Reports")
     for name in [

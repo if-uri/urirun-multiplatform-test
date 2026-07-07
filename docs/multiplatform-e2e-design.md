@@ -106,6 +106,11 @@ installer references it exposes. The local-dev variant clones
 `get-urirun-com`, attaches locally built product artifacts, and records what
 must be wired into the real site-specific dev server.
 
+Production manifest discovery is attempted at `/manifest.json`,
+`/deployment-bundle/manifest.json`, and `/artifacts/manifest.json`. If none of
+those exists, comparison remains `PARTIAL` and is limited to discovered links,
+HTTP status checks, and local bundle validation.
+
 ## Deployment Bundle
 
 ```mermaid

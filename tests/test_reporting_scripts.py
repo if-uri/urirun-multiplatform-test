@@ -37,3 +37,11 @@ def test_ci_summary_extracts_junit_cases(tmp_path):
     assert cases["skipped"] == ["tests.test_a::test_skip"]
     assert cases["xfailed"] == ["tests.test_a::test_xfail"]
     assert cases["errors"] == []
+
+
+def test_ci_summary_surface_statuses():
+    assert ci_summary.report_status(None) == "not present"
+    assert ci_summary.report_status({"external_blockers": ["dashboard"]}) == "XFAIL / EXTERNAL BLOCKER"
+    assert ci_summary.report_status({"critical_console_errors": ["boom"]}) == "FAILED"
+    assert ci_summary.report_status({"comparison": {"status": "PARTIAL"}}) == "PARTIAL"
+    assert ci_summary.report_status({"page_status": 200, "installer_sha256": "abc", "exit_code": None}) == "download/hash only"

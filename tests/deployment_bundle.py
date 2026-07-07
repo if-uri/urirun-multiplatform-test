@@ -246,6 +246,15 @@ def validate_bundle(bundle_dir: Path) -> dict[str, Any]:
     if manifest_path.exists():
         manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         problems.extend(validate_manifest(manifest))
+        manifest_names = set(artifact_names(manifest))
+        checksum_names = set(checksum_map(manifest))
+        artifact_files = {path.name for path in (bundle_dir / "artifacts").glob("*") if path.is_file()} if (bundle_dir / "artifacts").exists() else set()
+        for name in sorted(manifest_names - artifact_files):
+            problems.append(f"manifest artifact missing from bundle: artifacts/{name}")
+        for name in sorted(checksum_names - artifact_files):
+            problems.append(f"checksum artifact missing from bundle: artifacts/{name}")
+        for name in sorted(artifact_files - manifest_names):
+            problems.append(f"orphaned artifact not listed in manifest: artifacts/{name}")
     if (bundle_dir / "checksums" / "SHA256SUMS").exists():
         problems.extend(validate_sha256sums(bundle_dir))
     promotion_candidate = not problems and bool(manifest.get("artifacts"))

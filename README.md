@@ -134,6 +134,8 @@ The local promotion intermediate format is `reports/deployment-bundle/`:
 
 The bundle is a dry-run promotion candidate only. Production deployment remains a trusted external CI/CD job with explicit credentials, signing, and approval.
 
+The production/local site comparison attempts installer-link discovery, HTTP status checks, and manifest discovery at `/manifest.json`, `/deployment-bundle/manifest.json`, and `/artifacts/manifest.json`. If no stable production manifest exists, the report is explicitly `PARTIAL`.
+
 Run only the user journey locally:
 
 ```bash

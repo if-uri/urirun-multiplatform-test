@@ -74,3 +74,16 @@ This repository should not:
 - sign binaries,
 - mutate CDN/storage/GitHub Releases,
 - mark production deployment as `DONE` without external job evidence.
+
+## Acceptance Signal For This Harness
+
+The blocker is considered removed only when an external trusted job provides:
+
+- a workflow run URL,
+- signed/published artifact URLs,
+- published production manifest and checksums,
+- approval/signing audit evidence,
+- post-publish smoke report,
+- rollback procedure evidence.
+
+Those references should then be recorded in `docs/VALIDATION_REPORT.md`; this harness should still remain a validator, not the production publisher.

@@ -75,6 +75,27 @@ def test_deployment_bundle_detects_checksum_mismatch(tmp_path):
     assert validate_bundle(bundle_dir)["promotion_candidate"] is False
 
 
+def test_deployment_bundle_detects_missing_and_orphaned_artifacts(tmp_path):
+    artifact_dir = tmp_path / "artifacts-in"
+    artifact_dir.mkdir()
+    wheel = artifact_dir / "urirun-1.0.0-py3-none-any.whl"
+    wheel.write_bytes(b"wheel")
+    records = [artifact_record(wheel)]
+    manifest = build_manifest(product="urirun", version="1.0.0", repo_url="repo", ref="main", revision="abc", artifacts=records)
+    bundle_dir = tmp_path / "deployment-bundle"
+    create_deployment_bundle(artifact_dir=artifact_dir, bundle_dir=bundle_dir, manifest=manifest, artifacts=records)
+
+    (bundle_dir / "artifacts" / wheel.name).unlink()
+    orphan = bundle_dir / "artifacts" / "urirun-orphan.whl"
+    orphan.write_bytes(b"orphan")
+
+    problems = validate_bundle(bundle_dir)["problems"]
+    assert f"missing checksum target: artifacts/{wheel.name}" in problems
+    assert f"manifest artifact missing from bundle: artifacts/{wheel.name}" in problems
+    assert f"checksum artifact missing from bundle: artifacts/{wheel.name}" in problems
+    assert "orphaned artifact not listed in manifest: artifacts/urirun-orphan.whl" in problems
+
+
 def test_manifest_validation_reports_missing_fields(tmp_path):
     manifest = {"product": "urirun", "artifacts": [{"name": "a.whl"}]}
     problems = validate_manifest(manifest)

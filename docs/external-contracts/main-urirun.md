@@ -63,3 +63,11 @@ Until then, gRPC coverage remains experimental in this harness.
 ## Acceptance Signal For This Harness
 
 This harness can promote related statuses only after the main repository provides real artifacts and a documented manifest/release output. Until then, native platform artifacts and stable GUI selector adoption remain `EXTERNAL BLOCKER`.
+
+The blocker is considered removed when:
+
+- `tests/test_product_artifacts_deployment.py` consumes real platform artifacts rather than only wheel/sdist.
+- `manifest.json` contains non-future entries for Windows, Linux, and macOS artifacts with valid SHA256 values.
+- `urirun host dashboard serve ...` reaches `/api/health` in `tests/test_gui_user_journey.py`.
+- GUI navigation succeeds through `data-testid` or ARIA selectors without critical browser errors.
+- Fresh install no longer requires dependency fallback warnings for missing runtime packages.

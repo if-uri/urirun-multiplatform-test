@@ -104,6 +104,7 @@ Since production deployment should not be automatically executed by the test har
     -> promotion candidate for production
   ```
 - `tests/test_deployment_bundle_helpers.py` validates structure, manifest, SHA256SUMS, and dry-run promotion status.
+- Negative tests cover checksum mismatch, missing artifacts, orphan artifacts, and invalid manifests.
 - Production deployment remains a trusted external promotion job.
 
 **Status:** DONE for local dry-run bundle generation and validation; PARTIAL for real production promotion.
@@ -136,6 +137,7 @@ Currently, the local `get-urirun-com` is partially prepared/simulated. The test 
 **Implemented work:**
 - `tests/local_dev_site.py` detects Node package scripts and static HTML.
 - Local-dev mode clones `GET_URIRUN_REPO_URL`, copies `reports/deployment-bundle/`, and writes `reports/local-dev-site.json`.
+- If a stable command is detected, the harness fetches the local server and attempts a Playwright browser smoke test.
 - If no stable command is detected, the user journey xfails with `integration_required`.
 - `tests/test_local_dev_site.py` covers stack detection and bundle wiring.
 
@@ -237,7 +239,7 @@ The current site artifact comparison is basic. It only counts references and doe
 - `tests/deployment_bundle.py::diff_manifests` has unit coverage.
 
 **Remaining work:** Production manifest discovery and visual regression remain TODO because the production site contract is not standardized here.
-The current implementation attempts common manifest URLs and reports `PARTIAL` when the production manifest contract is not discoverable.
+The current implementation attempts common manifest URLs (`/manifest.json`, `/deployment-bundle/manifest.json`, `/artifacts/manifest.json`) and reports `PARTIAL` when the production manifest contract is not discoverable.
 
 ### 6. Enhanced Manifest Comparison
 
@@ -250,7 +252,7 @@ The current manifest comparison is minimal. It should provide more detailed vali
 - Check for orphaned artifacts in the deployment directory
 - Add schema validation for manifest.json
 
-**Current status:** PARTIAL. Local manifest validation, checksum validation, artifact-list diffing, and checksum diffing exist; orphan scanning and full production schema enforcement remain TODO.
+**Current status:** PARTIAL. Local manifest validation, checksum validation, missing artifact detection, orphan artifact detection, artifact-list diffing, and checksum diffing exist; full production schema enforcement remains TODO.
 
 ### 7. GUI Test Contract (PARTIAL / EXPERIMENTAL)
 

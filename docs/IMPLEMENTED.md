@@ -84,7 +84,7 @@ This document describes what has been implemented in the `urirun-multiplatform-t
 - **Checksums**: `checksums/SHA256SUMS` validated against real files
 - **Site stub**: `site/index.html` exposes local artifact links
 - **Dry-run promotion**: `deployment-report.json` marks a bundle as `promotion_candidate` only when local validation passes
-- **Negative validation**: Unit coverage verifies checksum mismatch detection and invalid manifest reporting
+- **Negative validation**: Unit coverage verifies checksum mismatch detection, missing artifact detection, orphan artifact detection, and invalid manifest reporting
 - **Status**: PARTIAL for full product delivery because native `.exe`, `.deb`, `.rpm`, `.pkg`, and `.app` artifacts require external `if-uri/urirun` build pipelines.
 
 ### Local get-urirun-com Dev Server Integration (PARTIAL)
@@ -92,6 +92,7 @@ This document describes what has been implemented in the `urirun-multiplatform-t
 - **Bundle wiring**: Copies `reports/deployment-bundle/` and artifacts into the checkout
 - **Stack detection**: Detects `package.json` Node projects and static HTML sites
 - **Integration report**: Writes `reports/local-dev-site.json`
+- **Local smoke**: When a stable command is detected, the harness fetches the local server and attempts a Playwright browser smoke test
 - **Xfail behavior**: If no stable dev/static command is detected, the user journey reports `integration_required` and xfails instead of hard failing
 - **Contract**: `docs/external-contracts/get-urirun-com.md` describes the required site contract for full validation
 
@@ -143,7 +144,7 @@ This document describes what has been implemented in the `urirun-multiplatform-t
 - **JSON failure reports**: Per-test failure reports with system info and recommendations
 - **validation-report.json**: Self-validation rows for docs, markers, bundle, GUI policy, local-dev integration, and blockers
 - **ci-summary.md**: Markdown summary for GitHub Actions step summaries
-- **CI outcome summary**: `ci-summary.md` includes failed/error/skipped/xfail case names when JUnit XML is present
+- **CI outcome summary**: `ci-summary.md` includes failed/error/skipped/xfail case names, product vs diagnostic artifact counts, deployment-bundle status, install flow status, local-dev-site status, GUI status, and expected GitHub artifact names when JUnit XML and reports are present
 
 ### GitHub Actions Matrix
 - **linux-docker**: Ubuntu-latest with Docker container

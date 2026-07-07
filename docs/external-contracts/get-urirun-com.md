@@ -76,3 +76,13 @@ Install actions should expose stable selectors:
 ## Current Harness Behavior
 
 If this contract is missing, the local-dev-site test writes `reports/local-dev-site.json` and xfails with `integration_required` rather than hard failing or claiming success.
+
+## Acceptance Signal For This Harness
+
+The blocker is considered removed when:
+
+- `GET_URIRUN_SITE_MODE=local-dev-site` clones the real site repo successfully.
+- `tests/local_dev_site.py` detects a stable dev/static command without `integration_required`.
+- The local server starts on a dynamic port.
+- `reports/local-dev-site.json` records successful fetch and browser smoke results.
+- `site-artifact-comparison.json` can compare a local manifest with a production or local-dev manifest using artifact names and checksums.
