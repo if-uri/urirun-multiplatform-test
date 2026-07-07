@@ -16,7 +16,7 @@ The following status definitions are used throughout this repository:
 
 ## Critical TODO
 
-### 0. Self-Validation and Validation Report (DONE)
+### 0. Self-Validation and Validation Report (DONE / NOT VERIFIED)
 
 A self-validation process exists to maintain project health and documentation accuracy after major changes.
 
@@ -34,9 +34,9 @@ A self-validation process exists to maintain project health and documentation ac
 - `tests/test_reporting_scripts.py` covers status generation
 - `scripts/run_tests.py` runs validation after pytest
 
-**Remaining risk:** Human semantic review is still needed for nuanced documentation claims.
+**Remaining risk:** Human semantic review is still needed for nuanced documentation claims. Full GitHub Actions matrix verification is still NOT VERIFIED.
 
-### 0.1 Self-Validation Checklist (DONE)
+### 0.1 Self-Validation Checklist (DONE / NOT VERIFIED)
 
 The generated `VALIDATION_REPORT.md` includes a structured checklist table with these columns:
 
@@ -258,7 +258,7 @@ The current GUI selectors are simple text-based matches. They may break if the d
 
 **External blocker:** Dashboard must adopt stable `data-testid`/ARIA selectors in main `urirun`.
 
-### 8. Whitelist Acceptable Network/Console Errors (DONE)
+### 8. Whitelist Acceptable Network/Console Errors (DONE / NOT VERIFIED)
 
 The current GUI test fails on any console error or network failure. Some errors may be acceptable (e.g., third-party tracking failures).
 
@@ -269,7 +269,9 @@ The current GUI test fails on any console error or network failure. Some errors 
 - Tests fail only on critical browser events.
 - `tests/test_gui_error_policy.py` covers filtering.
 
-### 9. Optional Trace/Video Retention Policy (DONE)
+**Remaining risk:** Full browser-profile CI verification is still NOT VERIFIED.
+
+### 9. Optional Trace/Video Retention Policy (DONE / NOT VERIFIED)
 
 Currently, Playwright traces are always saved. For long-running CI, this may consume significant storage.
 
@@ -279,7 +281,9 @@ Currently, Playwright traces are always saved. For long-running CI, this may con
 - Default trace mode is `on-failure`; default video mode is `off`.
 - Policy is documented in README and `docs/gui-test-contract.md`.
 
-### 10. Self-Hosted Runner Workflow Variants (DONE)
+**Remaining risk:** Real Playwright trace/video retention behavior has not been verified across the GitHub Actions installer-gui matrix.
+
+### 10. Self-Hosted Runner Workflow Variants (DONE / NOT VERIFIED)
 
 The current self-hosted runner documentation is generic. Organization-specific variants may be needed.
 
@@ -287,7 +291,9 @@ The current self-hosted runner documentation is generic. Organization-specific v
 - `.github/workflows/self-hosted-examples.yml` is manual-only and shows `[self-hosted, linux, urirun]`, `[self-hosted, windows, urirun]`, and `[self-hosted, macos, urirun]`.
 - Default CI does not require self-hosted runners.
 
-### 11. Docker Compose Matrix Coverage (DONE)
+**Remaining risk:** The example workflow has not been verified on real self-hosted runners.
+
+### 11. Docker Compose Matrix Coverage (PARTIAL / NOT VERIFIED)
 
 The current Docker coverage is limited to a single Linux container. More comprehensive matrix coverage would be useful.
 
@@ -295,6 +301,8 @@ The current Docker coverage is limited to a single Linux container. More compreh
 - `docker/compose/docker-compose.yml` provides optional Linux Python/Node combinations.
 - `docker/compose/python-node.Dockerfile` keeps dependencies light.
 - README documents local usage.
+
+**Remaining risk:** This is optional Linux-only coverage, not part of default CI, and there is no recorded compose run evidence in this repository.
 
 ## External Blockers
 
