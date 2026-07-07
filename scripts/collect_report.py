@@ -50,9 +50,17 @@ def main() -> int:
         "product_artifacts": {
             "directory": str(REPORT_DIR / "product-artifacts"),
             "local_deployment_directory": str(REPORT_DIR / "local-deployment" / "artifacts"),
+            "deployment_bundle_directory": str(REPORT_DIR / "deployment-bundle"),
             "files": sorted(
                 str(p.relative_to(REPORT_DIR))
-                for folder in [REPORT_DIR / "product-artifacts", REPORT_DIR / "local-deployment" / "artifacts", REPORT_DIR / "installer"]
+                for folder in [
+                    REPORT_DIR / "product-artifacts",
+                    REPORT_DIR / "local-deployment" / "artifacts",
+                    REPORT_DIR / "deployment-bundle" / "artifacts",
+                    REPORT_DIR / "deployment-bundle" / "checksums",
+                    REPORT_DIR / "deployment-bundle" / "site",
+                    REPORT_DIR / "installer",
+                ]
                 if folder.exists()
                 for p in folder.glob("*")
                 if p.is_file()

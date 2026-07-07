@@ -8,6 +8,7 @@ The following status definitions are used throughout this repository:
 
 - **DONE**: Feature or capability is fully implemented, tested, and verified in CI
 - **PARTIAL**: Feature is partially implemented but has gaps or limitations
+- **DOCUMENTED ONLY**: Contract or procedure is documented, but no executable implementation exists in this repository
 - **EXPERIMENTAL**: Feature is implemented but may depend on optional packages or evolving behavior
 - **XFAIL**: Known behavior gap, normally paired with pytest.xfail, documented as expected failure
 - **TODO**: Feature is planned but not yet implemented
@@ -124,6 +125,8 @@ The test harness should not deploy to production by default. Production deployme
 - Document the separation between test harness and production deployment
 - Add workflow documentation for trusted promotion job
 
+**Current status:** DOCUMENTED ONLY / EXTERNAL BLOCKER. See `docs/external-contracts/production-promotion.md`.
+
 **Impact:** Without clear separation, production deployments could happen without proper validation or approval.
 
 ### 1. Real Local `get-urirun-com` Dev Server (PARTIAL / EXTERNAL BLOCKER)
@@ -137,6 +140,8 @@ Currently, the local `get-urirun-com` is partially prepared/simulated. The test 
 - `tests/test_local_dev_site.py` covers stack detection and bundle wiring.
 
 **External blocker:** A fully reliable local dev server requires a stable contract in `if-uri/get-urirun-com`.
+
+**Contract:** See `docs/external-contracts/get-urirun-com.md`.
 
 **Impact:** Without this, the local-dev-site mode cannot fully validate the pre-production deployment flow.
 
@@ -171,6 +176,8 @@ Currently, the product artifact build primarily creates Python wheel and sdist f
 
 **Impact:** Without platform-specific artifacts, the user journey cannot validate the complete end-to-end installation experience for each platform.
 
+**Current status:** EXTERNAL BLOCKER. See `docs/external-contracts/main-urirun.md`.
+
 ### 3. Production Deployment Contract
 
 The test harness should not deploy to production without explicit credentials and approval, but it must clearly define the production deployment contract.
@@ -183,6 +190,8 @@ The test harness should not deploy to production without explicit credentials an
 - Add a test that verifies the production deployment contract without actually deploying (e.g., dry-run validation)
 
 **Impact:** Without a clear contract, it is difficult to validate that production deployments are consistent and complete.
+
+**Current status:** DOCUMENTED ONLY / EXTERNAL BLOCKER. See `docs/external-contracts/production-promotion.md`.
 
 ### 4. CI Verification (NOT VERIFIED)
 
@@ -202,6 +211,8 @@ Verify and document the actual results of GitHub Actions runs for all platform p
 - Update validation report with CI results
 
 **Impact:** Without CI verification, it is unclear which profiles actually pass in the CI environment.
+
+**Runbook:** See `docs/ci-verification.md`.
 
 ## Important TODO
 
@@ -226,6 +237,7 @@ The current site artifact comparison is basic. It only counts references and doe
 - `tests/deployment_bundle.py::diff_manifests` has unit coverage.
 
 **Remaining work:** Production manifest discovery and visual regression remain TODO because the production site contract is not standardized here.
+The current implementation attempts common manifest URLs and reports `PARTIAL` when the production manifest contract is not discoverable.
 
 ### 6. Enhanced Manifest Comparison
 
@@ -237,6 +249,8 @@ The current manifest comparison is minimal. It should provide more detailed vali
 - Validate that all required artifact kinds are present
 - Check for orphaned artifacts in the deployment directory
 - Add schema validation for manifest.json
+
+**Current status:** PARTIAL. Local manifest validation, checksum validation, artifact-list diffing, and checksum diffing exist; orphan scanning and full production schema enforcement remain TODO.
 
 ### 7. GUI Test Contract (PARTIAL / EXPERIMENTAL)
 
@@ -301,6 +315,7 @@ The current Docker coverage is limited to a single Linux container. More compreh
 - `docker/compose/docker-compose.yml` provides optional Linux Python/Node combinations.
 - `docker/compose/python-node.Dockerfile` keeps dependencies light.
 - README documents local usage.
+- `docs/docker-compose-matrix.md` documents commands, reports, and constraints.
 
 **Remaining risk:** This is optional Linux-only coverage, not part of default CI, and there is no recorded compose run evidence in this repository.
 

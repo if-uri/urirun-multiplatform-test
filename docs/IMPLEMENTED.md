@@ -84,6 +84,7 @@ This document describes what has been implemented in the `urirun-multiplatform-t
 - **Checksums**: `checksums/SHA256SUMS` validated against real files
 - **Site stub**: `site/index.html` exposes local artifact links
 - **Dry-run promotion**: `deployment-report.json` marks a bundle as `promotion_candidate` only when local validation passes
+- **Negative validation**: Unit coverage verifies checksum mismatch detection and invalid manifest reporting
 - **Status**: PARTIAL for full product delivery because native `.exe`, `.deb`, `.rpm`, `.pkg`, and `.app` artifacts require external `if-uri/urirun` build pipelines.
 
 ### Local get-urirun-com Dev Server Integration (PARTIAL)
@@ -92,6 +93,7 @@ This document describes what has been implemented in the `urirun-multiplatform-t
 - **Stack detection**: Detects `package.json` Node projects and static HTML sites
 - **Integration report**: Writes `reports/local-dev-site.json`
 - **Xfail behavior**: If no stable dev/static command is detected, the user journey reports `integration_required` and xfails instead of hard failing
+- **Contract**: `docs/external-contracts/get-urirun-com.md` describes the required site contract for full validation
 
 ### Production `get.urirun.com` Browser Smoke
 - **Playwright browser test**: Open production site in Chromium
@@ -141,6 +143,7 @@ This document describes what has been implemented in the `urirun-multiplatform-t
 - **JSON failure reports**: Per-test failure reports with system info and recommendations
 - **validation-report.json**: Self-validation rows for docs, markers, bundle, GUI policy, local-dev integration, and blockers
 - **ci-summary.md**: Markdown summary for GitHub Actions step summaries
+- **CI outcome summary**: `ci-summary.md` includes failed/error/skipped/xfail case names when JUnit XML is present
 
 ### GitHub Actions Matrix
 - **linux-docker**: Ubuntu-latest with Docker container
@@ -149,6 +152,7 @@ This document describes what has been implemented in the `urirun-multiplatform-t
 - **linux-installer-gui**: Ubuntu-latest with user journey tests
 - **windows-installer-gui**: Windows-latest with user journey tests
 - **macos-installer-gui**: macOS-latest with user journey tests
+- **Verification status**: Workflow profiles are defined, but passing CI evidence must be recorded through `docs/ci-verification.md` before marking them fully verified.
 
 ## Platform Coverage
 
@@ -332,6 +336,13 @@ docker compose -f docker/compose/docker-compose.yml run --rm py312-node22
 
 Other optional services cover Python 3.10/Node 20 and Python 3.11/Node 22. This is extra Linux coverage only; Windows and macOS remain runner-based.
 
+### CI Verification
+```bash
+# Run from GitHub Actions workflow_dispatch, not from the local shell.
+```
+
+See `docs/ci-verification.md` for input values, artifacts to inspect, and how to update validation docs after a real run.
+
 ## Stability Markers
 
 - **stable**: Expected to pass across Linux Docker, Windows runner, and macOS runner
@@ -344,3 +355,10 @@ Other optional services cover Python 3.10/Node 20 and Python 3.11/Node 22. This 
 - **Windows**: `docs/self-hosted-runners/windows.md`
 - **macOS**: `docs/self-hosted-runners/macos.md`
 - **Linux**: `docs/self-hosted-runners/linux.md`
+- **Workflow examples**: `docs/self-hosted-runners/workflow-examples.md`
+
+## External Contracts
+
+- **Main urirun**: `docs/external-contracts/main-urirun.md`
+- **get-urirun-com**: `docs/external-contracts/get-urirun-com.md`
+- **Trusted production promotion**: `docs/external-contracts/production-promotion.md`

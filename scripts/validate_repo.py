@@ -10,13 +10,18 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 REPORT_DIR = ROOT / "reports"
-VALID_STATUSES = {"DONE", "PARTIAL", "EXPERIMENTAL", "XFAIL", "TODO", "EXTERNAL BLOCKER", "NOT VERIFIED"}
+VALID_STATUSES = {"DONE", "PARTIAL", "DOCUMENTED ONLY", "EXPERIMENTAL", "XFAIL", "TODO", "EXTERNAL BLOCKER", "NOT VERIFIED"}
 KEY_FILES = [
     "README.md",
     "docs/TODO.md",
     "docs/IMPLEMENTED.md",
     "docs/multiplatform-e2e-design.md",
     "docs/gui-test-contract.md",
+    "docs/ci-verification.md",
+    "docs/docker-compose-matrix.md",
+    "docs/external-contracts/main-urirun.md",
+    "docs/external-contracts/get-urirun-com.md",
+    "docs/external-contracts/production-promotion.md",
     ".github/workflows/multiplatform.yml",
     "pyproject.toml",
     "scripts/run_tests.py",
@@ -144,6 +149,26 @@ def build_rows() -> list[dict[str, Any]]:
             "Tests not run / reason": "GitHub summary rendering only occurs in Actions",
             "Risk": "Low",
             "Recommended action": "Inspect uploaded reports for failed CI jobs",
+        },
+        {
+            "Area": "CI verification",
+            "Expected": "All six GitHub Actions profiles have recorded run evidence",
+            "Current status": "NOT VERIFIED",
+            "Evidence": ".github/workflows/multiplatform.yml; docs/ci-verification.md",
+            "Tests run": "Not run by local validation",
+            "Tests not run / reason": "Requires GitHub Actions execution outside this local repository workspace",
+            "Risk": "Workflow may be defined but not actually passing on GitHub-hosted runners",
+            "Recommended action": "Run workflow_dispatch and record run URLs plus artifacts in VALIDATION_REPORT.md",
+        },
+        {
+            "Area": "External contracts",
+            "Expected": "External blockers are documented as contracts rather than claimed done",
+            "Current status": "DOCUMENTED ONLY",
+            "Evidence": "docs/external-contracts/main-urirun.md; docs/external-contracts/get-urirun-com.md; docs/external-contracts/production-promotion.md",
+            "Tests run": "Documentation presence check",
+            "Tests not run / reason": "Requires changes in external repositories or trusted CI/CD",
+            "Risk": "External owners must implement the contracts before statuses can advance",
+            "Recommended action": "Use these contracts as acceptance criteria for external repo work",
         },
     ]
 

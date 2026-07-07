@@ -211,9 +211,29 @@ Diagnostic test outputs:
 - Native Windows/Linux/macOS product artifacts remain external blockers until
   `if-uri/urirun` provides build outputs for them.
 
+## External Contracts
+
+The harness owns local validation, report generation and dry-run bundle checks.
+It does not own product artifact build pipelines, the install-site contract, or
+trusted production promotion.
+
+- Main `urirun` artifact and GUI requirements:
+  [external-contracts/main-urirun.md](external-contracts/main-urirun.md)
+- Install-site dev server and manifest requirements:
+  [external-contracts/get-urirun-com.md](external-contracts/get-urirun-com.md)
+- Trusted production promotion requirements:
+  [external-contracts/production-promotion.md](external-contracts/production-promotion.md)
+
+## CI Verification
+
+Workflow definitions are present for the six required profiles, but this file
+does not claim those profiles pass until real GitHub Actions run evidence is
+recorded. See [ci-verification.md](ci-verification.md).
+
 ## Additional Documentation
 
 - **[IMPLEMENTED.md](IMPLEMENTED.md)** - Detailed description of what has been implemented in the test harness
 - **[TODO.md](TODO.md)** - Structured plan for remaining work and future improvements
 - **[VALIDATION_REPORT.md](VALIDATION_REPORT.md)** - Generated self-validation table
 - **[gui-test-contract.md](gui-test-contract.md)** - Dashboard selector and browser diagnostic contract
+- **[ci-verification.md](ci-verification.md)** - Manual CI run and evidence capture guide

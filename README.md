@@ -167,6 +167,11 @@ Architecture and flow diagrams: [docs/multiplatform-e2e-design.md](docs/multipla
 - **[docs/TODO.md](docs/TODO.md)** - Structured plan for remaining work, critical TODOs, and external blockers
 - **[docs/VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md)** - Generated self-validation status table
 - **[docs/gui-test-contract.md](docs/gui-test-contract.md)** - Dashboard selector, browser error, screenshot, trace, and video contract
+- **[docs/ci-verification.md](docs/ci-verification.md)** - How to run and record GitHub Actions verification
+- **[docs/docker-compose-matrix.md](docs/docker-compose-matrix.md)** - Optional Linux Compose matrix usage
+- **[docs/external-contracts/main-urirun.md](docs/external-contracts/main-urirun.md)** - Required contracts for the main `urirun` repository
+- **[docs/external-contracts/get-urirun-com.md](docs/external-contracts/get-urirun-com.md)** - Required contracts for the install site repository
+- **[docs/external-contracts/production-promotion.md](docs/external-contracts/production-promotion.md)** - Trusted production promotion contract
 
 ## Self-Hosted Runners
 
@@ -175,6 +180,7 @@ Self-hosted runner setup guides:
 - [Windows self-hosted runner](docs/self-hosted-runners/windows.md)
 - [macOS self-hosted runner](docs/self-hosted-runners/macos.md)
 - [Linux self-hosted runner](docs/self-hosted-runners/linux.md)
+- [Manual-only workflow examples](docs/self-hosted-runners/workflow-examples.md)
 
 Use these when replacing GitHub-hosted runners with company-managed Windows, macOS, or Linux hosts.
 
@@ -255,6 +261,7 @@ Implemented coverage includes:
 ## Remaining Work In This Repository
 
 - Optional richer transport logs, for example timing and request/response excerpts for successful HTTP/MCP/gRPC runs.
+- Recorded GitHub Actions verification for all six workflow profiles.
 - Real platform installer artifact production remains outside this repository until the main `urirun` build pipeline provides those artifacts.
 - Real local `get-urirun-com` serving remains PARTIAL until that repository exposes a stable dev/static server contract.
 

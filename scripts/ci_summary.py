@@ -34,6 +34,28 @@ def junit_summary(path: Path) -> dict[str, int] | None:
     return result
 
 
+def junit_cases(path: Path) -> dict[str, list[str]]:
+    result = {"failed": [], "errors": [], "skipped": [], "xfailed": []}
+    if not path.exists():
+        return result
+    root = ET.fromstring(path.read_text(encoding="utf-8"))
+    for case in root.iter("testcase"):
+        name = "::".join(part for part in [case.attrib.get("classname"), case.attrib.get("name")] if part)
+        if case.find("failure") is not None:
+            result["failed"].append(name)
+        if case.find("error") is not None:
+            result["errors"].append(name)
+        skipped = case.find("skipped")
+        if skipped is not None:
+            message = (skipped.attrib.get("message") or "").lower()
+            skipped_type = (skipped.attrib.get("type") or "").lower()
+            if "xfail" in message or "xfail" in skipped_type or "expected failure" in message:
+                result["xfailed"].append(name)
+            else:
+                result["skipped"].append(name)
+    return result
+
+
 def bullet_json(name: str, payload: dict[str, Any] | list[Any] | None) -> list[str]:
     if payload is None:
         return [f"- `{name}`: not present"]
@@ -52,6 +74,7 @@ def build_summary() -> str:
     summary = read_json(REPORT_DIR / "summary.json")
     validation = read_json(REPORT_DIR / "validation-report.json")
     junit = junit_summary(REPORT_DIR / "junit.xml")
+    cases = junit_cases(REPORT_DIR / "junit.xml")
     if isinstance(summary, dict):
         lines.extend([
             f"- Profile: `{summary.get('profile', 'unknown')}`",
@@ -65,12 +88,47 @@ def build_summary() -> str:
     else:
         lines.append("- `junit.xml`: not present")
     lines.append("")
+    lines.append("## Test Outcomes")
+    for label, values in [
+        ("Failed", cases["failed"]),
+        ("Errors", cases["errors"]),
+        ("Skipped", cases["skipped"]),
+        ("Xfail/expected", cases["xfailed"]),
+    ]:
+        if values:
+            lines.append(f"- {label}: {len(values)}")
+            for item in values[:20]:
+                lines.append(f"  - `{item}`")
+            if len(values) > 20:
+                lines.append(f"  - ... and {len(values) - 20} more")
+        else:
+            lines.append(f"- {label}: 0")
+    lines.append("")
     lines.append("## Validation")
     if isinstance(validation, dict):
         for row in validation.get("rows", []):
             lines.append(f"- {row.get('Area')}: **{row.get('Current status')}** - {row.get('Recommended action')}")
     else:
         lines.append("- validation report not present")
+    lines.append("")
+    lines.append("## Artifact Classes")
+    if isinstance(summary, dict):
+        product = summary.get("product_artifacts", {})
+        diagnostic = summary.get("diagnostic_test_artifacts", {})
+        product_files = product.get("files", []) if isinstance(product, dict) else []
+        lines.append(f"- Product artifact files: {len(product_files)}")
+        for item in product_files[:20]:
+            lines.append(f"  - `{item}`")
+        lines.append(f"- Diagnostic screenshots: {len(diagnostic.get('screenshots', [])) if isinstance(diagnostic, dict) else 0}")
+        lines.append(f"- Diagnostic traces: {len(diagnostic.get('traces', [])) if isinstance(diagnostic, dict) else 0}")
+        lines.append(f"- Diagnostic logs: {len(diagnostic.get('logs', [])) if isinstance(diagnostic, dict) else 0}")
+    else:
+        lines.append("- summary.json not present")
+    deployment_report = read_json(REPORT_DIR / "deployment-bundle" / "deployment-report.json")
+    if isinstance(deployment_report, dict):
+        lines.append(f"- Deployment bundle: {deployment_report.get('status')} promotion_candidate={deployment_report.get('promotion_candidate')}")
+    else:
+        lines.append("- Deployment bundle: not present")
     lines.append("")
     lines.append("## User Journey Reports")
     for name in [

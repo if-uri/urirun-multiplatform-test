@@ -211,7 +211,15 @@ def start_dashboard(project: Path, *, host: str = "127.0.0.1") -> tuple[ManagedP
     ]
     process = start_process("gui-dashboard", command, env=isolated_env(isolated_home("gui-home")), cwd=ROOT)
     url = f"http://{host}:{port}/"
-    wait_http_ready(f"{url}api/health", timeout=60)
+    try:
+        wait_http_ready(f"{url}api/health", timeout=60)
+    except Exception as exc:
+        logs = process.read_logs()
+        process.terminate()
+        raise RuntimeError(
+            "dashboard health endpoint did not become ready; "
+            f"stdout={logs['stdout'][-2000:]}; stderr={logs['stderr'][-2000:]}; error={exc}"
+        ) from exc
     return process, url
 
 

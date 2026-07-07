@@ -143,6 +143,37 @@ def parse_sha256sums(path: Path) -> dict[str, str]:
     return checksums
 
 
+def load_manifest(path: Path) -> tuple[dict[str, Any] | None, list[str]]:
+    if not path.exists():
+        return None, [f"manifest not found: {path}"]
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return None, [f"manifest is not valid JSON: {exc}"]
+    if not isinstance(manifest, dict):
+        return None, ["manifest root must be an object"]
+    return manifest, validate_manifest(manifest)
+
+
+def artifact_names(manifest: dict[str, Any]) -> list[str]:
+    return sorted(
+        str(item.get("name"))
+        for item in manifest.get("artifacts", [])
+        if isinstance(item, dict) and item.get("name")
+    )
+
+
+def checksum_map(manifest: dict[str, Any]) -> dict[str, str]:
+    checksums = manifest.get("checksums", {})
+    if isinstance(checksums, dict) and checksums:
+        return {str(key): str(value) for key, value in checksums.items()}
+    result: dict[str, str] = {}
+    for item in manifest.get("artifacts", []):
+        if isinstance(item, dict) and item.get("name") and item.get("sha256"):
+            result[str(item["name"])] = str(item["sha256"])
+    return result
+
+
 def validate_sha256sums(bundle_dir: Path) -> list[str]:
     problems: list[str] = []
     sums = parse_sha256sums(bundle_dir / "checksums" / "SHA256SUMS")
@@ -240,6 +271,10 @@ def diff_manifests(local: dict[str, Any], production: dict[str, Any]) -> dict[st
         "version": {"local": local.get("version"), "production": production.get("version"), "matches": local.get("version") == production.get("version")},
         "ref": {"local": local.get("ref"), "production": production.get("ref"), "matches": local.get("ref") == production.get("ref")},
         "revision": {"local": local.get("revision"), "production": production.get("revision"), "matches": local.get("revision") == production.get("revision")},
+        "local_artifacts": artifact_names(local),
+        "production_artifacts": artifact_names(production),
+        "local_checksums": checksum_map(local),
+        "production_checksums": checksum_map(production),
         "missing_in_production": sorted(local_names - production_names),
         "missing_locally": sorted(production_names - local_names),
         "checksum_differences": checksum_diffs,

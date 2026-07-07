@@ -7,7 +7,9 @@ from tests.deployment_bundle import (
     build_manifest,
     create_deployment_bundle,
     diff_manifests,
+    load_manifest,
     parse_sha256sums,
+    validate_manifest,
     validate_bundle,
     validate_sha256sums,
 )
@@ -56,6 +58,36 @@ def test_manifest_records_future_platform_artifacts(tmp_path):
     assert all(item["status"] == "EXTERNAL BLOCKER" for item in manifest["future_artifacts"])
 
 
+def test_deployment_bundle_detects_checksum_mismatch(tmp_path):
+    artifact_dir = tmp_path / "artifacts-in"
+    artifact_dir.mkdir()
+    wheel = artifact_dir / "urirun-1.0.0-py3-none-any.whl"
+    wheel.write_bytes(b"wheel")
+    records = [artifact_record(wheel)]
+    manifest = build_manifest(product="urirun", version="1.0.0", repo_url="repo", ref="main", revision="abc", artifacts=records)
+    bundle_dir = tmp_path / "deployment-bundle"
+    create_deployment_bundle(artifact_dir=artifact_dir, bundle_dir=bundle_dir, manifest=manifest, artifacts=records)
+
+    (bundle_dir / "artifacts" / wheel.name).write_bytes(b"tampered")
+
+    problems = validate_sha256sums(bundle_dir)
+    assert problems == [f"checksum mismatch: artifacts/{wheel.name}"]
+    assert validate_bundle(bundle_dir)["promotion_candidate"] is False
+
+
+def test_manifest_validation_reports_missing_fields(tmp_path):
+    manifest = {"product": "urirun", "artifacts": [{"name": "a.whl"}]}
+    problems = validate_manifest(manifest)
+    assert "missing manifest field: generated_at" in problems
+    assert "artifact[0] missing field: sha256" in problems
+
+    path = tmp_path / "manifest.json"
+    path.write_text("{not json", encoding="utf-8")
+    loaded, load_problems = load_manifest(path)
+    assert loaded is None
+    assert load_problems[0].startswith("manifest is not valid JSON")
+
+
 def test_manifest_diff_report():
     local = {
         "version": "1",
@@ -71,6 +103,9 @@ def test_manifest_diff_report():
     }
     diff = diff_manifests(local, production)
     assert diff["version"]["matches"] is False
+    assert diff["local_artifacts"] == ["a.whl", "b.tar.gz"]
+    assert diff["production_artifacts"] == ["a.whl", "old.exe"]
+    assert diff["local_checksums"]["a.whl"] == "111"
     assert diff["missing_in_production"] == ["b.tar.gz"]
     assert diff["missing_locally"] == ["old.exe"]
     assert diff["checksum_differences"] == ["a.whl"]

@@ -19,6 +19,7 @@ from tests.deployment_bundle import (
     diff_manifests,
     discover_artifacts,
     validate_bundle,
+    validate_manifest,
 )
 from tests.gui_utils import current_system, fetch_text, write_json_report
 from tests.local_dev_site import clone_checkout, copy_bundle_into_checkout, detect_dev_server, start_detected_server
@@ -167,6 +168,40 @@ def _production_artifact_refs(text: str, base_url: str) -> list[str]:
     return sorted(set(refs))
 
 
+def _manifest_candidates(base_url: str, artifact_refs: list[str]) -> list[str]:
+    candidates = [urljoin(base_url, "manifest.json"), urljoin(base_url, "artifacts/manifest.json")]
+    candidates.extend(ref for ref in artifact_refs if ref.lower().endswith("manifest.json"))
+    deduped: list[str] = []
+    for candidate in candidates:
+        if candidate not in deduped:
+            deduped.append(candidate)
+    return deduped
+
+
+def _fetch_first_manifest(base_url: str, artifact_refs: list[str]) -> dict:
+    attempts: list[dict] = []
+    for candidate in _manifest_candidates(base_url, artifact_refs):
+        status, body, error = fetch_text(candidate, timeout=10)
+        attempt = {"url": candidate, "status": status, "error": error}
+        if status and 200 <= status < 400 and body.strip():
+            try:
+                manifest = json.loads(body)
+            except json.JSONDecodeError as exc:
+                attempt["parse_error"] = str(exc)
+            else:
+                if isinstance(manifest, dict):
+                    problems = validate_manifest(manifest)
+                    return {"status": "found", "url": candidate, "manifest": manifest, "validation_problems": problems, "attempts": attempts + [attempt]}
+                attempt["parse_error"] = "manifest root is not an object"
+        attempts.append(attempt)
+    return {
+        "status": "not_found",
+        "manifest": None,
+        "validation_problems": ["production manifest contract is not discoverable"],
+        "attempts": attempts,
+    }
+
+
 @pytest.mark.user_journey
 @pytest.mark.experimental
 def test_build_product_artifacts_and_local_deployment_simulation():
@@ -249,6 +284,7 @@ def test_production_and_local_dev_site_artifact_references():
         "production_url": production_url,
         "production_status": None,
         "production_product_artifact_refs": [],
+        "production_manifest": None,
         "local_dev": None,
         "comparison": {},
         "diff_report": {},
@@ -268,9 +304,17 @@ def test_production_and_local_dev_site_artifact_references():
         report["production_error"] = error
         report["production_product_artifact_refs"] = _production_artifact_refs(text, production_url)
         report["installer_links"] = [ref for ref in report["production_product_artifact_refs"] if ref.lower().endswith((".ps1", ".sh"))]
+        report["production_manifest"] = _fetch_first_manifest(production_url, report["production_product_artifact_refs"])
         for ref in report["production_product_artifact_refs"][:20]:
             endpoint_status, _, endpoint_error = fetch_text(ref, timeout=10)
             report["artifact_endpoint_status"][ref] = {"status": endpoint_status, "error": endpoint_error}
+        report["comparison"] = {
+            "status": "PARTIAL" if not report["production_manifest"].get("manifest") else "DONE",
+            "partial_reason": None if report["production_manifest"].get("manifest") else "production manifest contract is not discoverable; comparison uses artifact refs and endpoint checks only",
+            "production_refs_count": len(report["production_product_artifact_refs"]),
+            "installer_links_count": len(report["installer_links"]),
+            "checked_endpoint_count": len(report["artifact_endpoint_status"]),
+        }
         write_json_report("site-artifact-comparison.json", report)
         assert status and 200 <= status < 400
 
@@ -329,8 +373,11 @@ def test_production_and_local_dev_site_artifact_references():
         local_manifest_path = bundle_dir / "manifest.json"
         if local_manifest_path.exists():
             local_manifest = json.loads(local_manifest_path.read_text(encoding="utf-8"))
-            report["diff_report"] = diff_manifests(local_manifest, {"artifacts": [], "version": None, "ref": None, "revision": None})
+            production_manifest = (report.get("production_manifest") or {}).get("manifest") or {"artifacts": [], "version": None, "ref": None, "revision": None}
+            report["diff_report"] = diff_manifests(local_manifest, production_manifest)
         report["comparison"] = {
+            "status": "PARTIAL" if not ((report.get("production_manifest") or {}).get("manifest")) else "DONE",
+            "partial_reason": None if ((report.get("production_manifest") or {}).get("manifest")) else "production manifest contract is not discoverable; comparison uses artifact refs and endpoint checks only",
             "production_refs_count": len(report["production_product_artifact_refs"]),
             "local_product_artifacts_count": len(list((REPORT_DIR / "local-deployment" / "artifacts").glob("*"))),
             "deployment_bundle": bundle_validation,
