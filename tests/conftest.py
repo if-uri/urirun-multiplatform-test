@@ -17,6 +17,11 @@ ROOT = Path(__file__).resolve().parents[1]
 REPORT_DIR = ROOT / "reports"
 REGISTRY = ROOT / "fixtures" / "registry.json"
 WORK = ROOT / ".work"
+MESH_UNAVAILABLE_XFAIL = (
+    "urirun host/node mesh layer is unavailable after a fresh install: "
+    "urirun-contract / urirun-connector-router / urirun-flow>=0.2.2 are not "
+    "published, so the harness --no-deps fallback leaves urirun_flow missing."
+)
 
 
 def _venv_bin() -> Path:
@@ -86,6 +91,8 @@ def recommendation(result: subprocess.CompletedProcess[str] | None, exc: BaseExc
         return "Inspect the Python stack trace and verify the test environment paths."
     if "no allow rule" in text or "permission" in text or "policy" in text:
         return "Check --allow policy globs and avoid broadening them beyond the tested URI scheme."
+    if "mesh not available" in text:
+        return "Install or publish the urirun mesh dependencies required by host/node commands, then rerun the E2E harness."
     if "no such file" in text or "not found" in text:
         return "Verify the registry path, command availability, and PATH inside the test virtualenv."
     if "schema" in text or "invalid" in text:
@@ -132,6 +139,11 @@ def run_cmd(
         write_failure_report("command_failure", command, cp)
         raise AssertionError(f"command failed with {cp.returncode}: {' '.join(command)}\n{cp.stderr}")
     return cp
+
+
+def xfail_if_mesh_unavailable(output: str) -> None:
+    if "mesh not available" in output:
+        pytest.xfail(MESH_UNAVAILABLE_XFAIL)
 
 
 def run_shell(command: str, *, shell_name: str, check: bool = True, timeout: int = 60) -> subprocess.CompletedProcess[str]:

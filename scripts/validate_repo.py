@@ -18,6 +18,7 @@ KEY_FILES = [
     "docs/multiplatform-e2e-design.md",
     "docs/gui-test-contract.md",
     "docs/ci-verification.md",
+    "docs/main-repo-trigger-workflow.md",
     "docs/docker-compose-matrix.md",
     "docs/external-contracts/main-urirun.md",
     "docs/external-contracts/get-urirun-com.md",
@@ -26,12 +27,34 @@ KEY_FILES = [
     "pyproject.toml",
     "scripts/run_tests.py",
     "scripts/collect_report.py",
+    "scripts/ci_summary.py",
+    "scripts/validate_repo.py",
     "tests/gui_utils.py",
+    "tests/deployment_bundle.py",
+    "tests/test_deployment_bundle_helpers.py",
     "tests/test_product_artifacts_deployment.py",
     "tests/test_get_urirun_site.py",
+    "tests/test_get_urirun_install_flow.py",
     "tests/test_gui_user_journey.py",
+    "tests/test_gui_error_policy.py",
     "tests/test_transports.py",
     "docker/linux/Dockerfile",
+]
+REQUIRED_PROFILES = [
+    "linux-docker",
+    "windows-runner",
+    "macos-runner",
+    "linux-installer-gui",
+    "windows-installer-gui",
+    "macos-installer-gui",
+]
+REQUIRED_REPORT_NAMES = [
+    "summary.json",
+    "junit.xml",
+    "ci-summary.md",
+    "validation-report.json",
+    "gui-user-journey.json",
+    "product-artifacts-deployment.json",
 ]
 
 
@@ -65,10 +88,77 @@ def status_for(area: str, evidence_exists: bool, external: bool = False, experim
     return "DONE"
 
 
+def missing_substrings(text: str, required: list[str]) -> list[str]:
+    return [item for item in required if item not in text]
+
+
+def workflow_text() -> str:
+    return read_text(ROOT / ".github" / "workflows" / "multiplatform.yml")
+
+
+def workflow_dispatch_missing(text: str) -> list[str]:
+    required = [
+        "workflow_dispatch:",
+        "repository_dispatch:",
+        "urirun_repo_url",
+        "urirun_ref",
+        "get_urirun_site_mode",
+        "allow_remote_install",
+        "github.event.client_payload.urirun_repo_url",
+        "github.event.client_payload.urirun_ref",
+        "github.event.client_payload.sha",
+        "URIRUN_REPO_URL:",
+        "URIRUN_REF:",
+    ]
+    return missing_substrings(text, required)
+
+
+def workflow_shell_missing(text: str) -> list[str]:
+    expectations = [
+        "matrix.profile == 'windows-runner'\n        shell: pwsh",
+        "matrix.profile == 'macos-runner'\n        shell: bash",
+        "matrix.profile == 'windows-installer-gui'\n        shell: pwsh",
+        "matrix.profile == 'macos-installer-gui'\n        shell: bash",
+    ]
+    return missing_substrings(text, expectations)
+
+
 def build_rows() -> list[dict[str, Any]]:
     docs = {name: read_text(ROOT / name) for name in ["README.md", "docs/TODO.md", "docs/IMPLEMENTED.md", "docs/multiplatform-e2e-design.md"]}
     marker_missing = sorted(used_markers() - pytest_markers())
     key_missing = [name for name in KEY_FILES if not (ROOT / name).exists()]
+    workflow = workflow_text()
+    profile_missing = missing_substrings(workflow, REQUIRED_PROFILES)
+    dispatch_missing = workflow_dispatch_missing(workflow)
+    shell_missing = workflow_shell_missing(workflow)
+    report_missing = missing_substrings(
+        read_text(ROOT / "scripts" / "collect_report.py")
+        + read_text(ROOT / "scripts" / "ci_summary.py")
+        + read_text(ROOT / "scripts" / "run_tests.py"),
+        REQUIRED_REPORT_NAMES,
+    )
+    gui_missing = missing_substrings(
+        read_text(ROOT / "tests" / "gui_utils.py") + read_text(ROOT / "tests" / "test_gui_user_journey.py"),
+        [
+            "URIRUN_GUI_ALLOWED_CONSOLE_ERROR_PATTERNS",
+            "URIRUN_GUI_ALLOWED_NETWORK_ERROR_PATTERNS",
+            "URIRUN_PLAYWRIGHT_TRACE_MODE",
+            "URIRUN_PLAYWRIGHT_VIDEO_MODE",
+            "data-testid",
+            "aria-label",
+        ],
+    )
+    bundle_missing = missing_substrings(
+        read_text(ROOT / "tests" / "deployment_bundle.py") + read_text(ROOT / "tests" / "test_deployment_bundle_helpers.py"),
+        [
+            "checksums/SHA256SUMS",
+            "deployment-report.json",
+            "missing checksum target",
+            "checksum mismatch",
+            "orphaned artifact",
+            "future_artifacts",
+        ],
+    )
     return [
         {
             "Area": "Key repository files",
@@ -101,14 +191,39 @@ def build_rows() -> list[dict[str, Any]]:
             "Recommended action": "Add missing markers to pyproject.toml" if marker_missing else "No action",
         },
         {
+            "Area": "Workflow profiles and dispatch inputs",
+            "Expected": "workflow_dispatch, repository_dispatch, all six profiles, payload mapping and OS-specific shells are wired",
+            "Current status": "DONE" if not (profile_missing or dispatch_missing or shell_missing) else "PARTIAL",
+            "Evidence": ".github/workflows/multiplatform.yml; docs/main-repo-trigger-workflow.md",
+            "Tests run": "scripts/validate_repo.py",
+            "Tests not run / reason": "Structural validation only; does not prove GitHub-hosted runner success",
+            "Risk": "Main repo cannot trigger exact-ref E2E runs" if dispatch_missing else "Workflow can still fail only at runtime",
+            "Recommended action": (
+                "Fix missing workflow wiring: "
+                + ", ".join(profile_missing + dispatch_missing + shell_missing)
+                if (profile_missing or dispatch_missing or shell_missing)
+                else "Keep repository_dispatch trigger and profile matrix under validation"
+            ),
+        },
+        {
+            "Area": "Required report generation",
+            "Expected": "summary, JUnit, CI markdown, validation, GUI and product-artifact reports are generated or documented",
+            "Current status": "DONE" if not report_missing else "PARTIAL",
+            "Evidence": "scripts/run_tests.py; scripts/collect_report.py; scripts/ci_summary.py",
+            "Tests run": "scripts/validate_repo.py; tests/test_reporting_scripts.py",
+            "Tests not run / reason": "Some reports are emitted only by user-journey tests",
+            "Risk": "CI failures become hard to diagnose" if report_missing else "Low",
+            "Recommended action": "Add missing report wiring: " + ", ".join(report_missing) if report_missing else "No action",
+        },
+        {
             "Area": "Deployment bundle",
             "Expected": "reports/deployment-bundle has manifest, artifacts, checksums, site and deployment-report",
-            "Current status": status_for("Deployment bundle", (ROOT / "tests" / "deployment_bundle.py").exists()),
+            "Current status": "DONE" if not bundle_missing else "PARTIAL",
             "Evidence": "tests/deployment_bundle.py; tests/test_deployment_bundle_helpers.py",
             "Tests run": "helper unit tests; user journey test when active",
             "Tests not run / reason": "Production promotion is intentionally dry-run only",
             "Risk": "Platform installers remain external",
-            "Recommended action": "Use bundle as promotion candidate input for trusted deployment job",
+            "Recommended action": "Use bundle as promotion candidate input for trusted deployment job" if not bundle_missing else "Fix missing bundle contract checks: " + ", ".join(bundle_missing),
         },
         {
             "Area": "Platform artifacts",
@@ -133,12 +248,12 @@ def build_rows() -> list[dict[str, Any]]:
         {
             "Area": "GUI test contract and error policy",
             "Expected": "Stable selector preference, strict default allowlist, trace/video retention controls",
-            "Current status": "EXPERIMENTAL",
+            "Current status": "EXPERIMENTAL" if not gui_missing else "PARTIAL",
             "Evidence": "docs/gui-test-contract.md; tests/gui_utils.py; tests/test_gui_error_policy.py",
             "Tests run": "tests/test_gui_error_policy.py",
             "Tests not run / reason": "Dashboard UI behavior depends on tested urirun ref",
             "Risk": "Dashboard can emit legitimate xfail-worthy browser errors",
-            "Recommended action": "Add data-testid attributes and reduce dashboard console/network errors in main urirun",
+            "Recommended action": "Add data-testid attributes and reduce dashboard console/network errors in main urirun" if not gui_missing else "Fix missing GUI controls: " + ", ".join(gui_missing),
         },
         {
             "Area": "CI reporting",

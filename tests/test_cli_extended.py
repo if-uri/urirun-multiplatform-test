@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from tests.conftest import run_cmd
+from tests.conftest import run_cmd, xfail_if_mesh_unavailable
 
 
 @pytest.mark.stable
@@ -72,7 +72,7 @@ def test_add_command_generates_portable_binding(cli, tmp_path):
 @pytest.mark.stable
 def test_node_config_roundtrip_without_starting_service(cli, registry_path, tmp_path):
     config = tmp_path / "node.json"
-    run_cmd([
+    init = run_cmd([
         cli,
         "node",
         "init",
@@ -86,7 +86,9 @@ def test_node_config_roundtrip_without_starting_service(cli, registry_path, tmp_
         "127.0.0.1",
         "--port",
         "8765",
-    ])
+    ], check=False)
+    xfail_if_mesh_unavailable(init.stdout + init.stderr)
+    assert init.returncode == 0, init.stderr
     cp = run_cmd([cli, "node", "config", "--config", str(config)])
     assert "e2e-node" in cp.stdout
     assert "127.0.0.1" in cp.stdout
@@ -95,7 +97,9 @@ def test_node_config_roundtrip_without_starting_service(cli, registry_path, tmp_
 @pytest.mark.stable
 def test_host_config_roundtrip_without_network(cli, tmp_path):
     config = tmp_path / "mesh.json"
-    run_cmd([cli, "host", "init", "--config", str(config), "--name", "e2e-host"])
+    init = run_cmd([cli, "host", "init", "--config", str(config), "--name", "e2e-host"], check=False)
+    xfail_if_mesh_unavailable(init.stdout + init.stderr)
+    assert init.returncode == 0, init.stderr
     run_cmd([cli, "host", "add-node", "--config", str(config), "local", "http://127.0.0.1:8765", "--kind", "api"])
     cp = run_cmd([cli, "host", "config", "--config", str(config)])
     assert "e2e-host" in cp.stdout

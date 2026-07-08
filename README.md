@@ -87,6 +87,10 @@ The Compose matrix is intentionally not part of the default CI path. It provides
 
 Workflow: `.github/workflows/multiplatform.yml`.
 
+The workflow can be started manually with `workflow_dispatch` inputs or by
+`repository_dispatch` from the main `if-uri/urirun` repository. In both cases
+the workflow maps the selected source to `URIRUN_REPO_URL` and `URIRUN_REF`.
+
 The matrix runs:
 
 - `linux-docker / ubuntu-latest`
@@ -170,6 +174,7 @@ Architecture and flow diagrams: [docs/multiplatform-e2e-design.md](docs/multipla
 - **[docs/VALIDATION_REPORT.md](docs/VALIDATION_REPORT.md)** - Generated self-validation status table
 - **[docs/gui-test-contract.md](docs/gui-test-contract.md)** - Dashboard selector, browser error, screenshot, trace, and video contract
 - **[docs/ci-verification.md](docs/ci-verification.md)** - How to run and record GitHub Actions verification
+- **[docs/main-repo-trigger-workflow.md](docs/main-repo-trigger-workflow.md)** - Example workflow for triggering this harness from the main `urirun` repository
 - **[docs/docker-compose-matrix.md](docs/docker-compose-matrix.md)** - Optional Linux Compose matrix usage
 - **[docs/external-contracts/main-urirun.md](docs/external-contracts/main-urirun.md)** - Required contracts for the main `urirun` repository
 - **[docs/external-contracts/get-urirun-com.md](docs/external-contracts/get-urirun-com.md)** - Required contracts for the install site repository

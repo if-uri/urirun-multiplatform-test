@@ -13,20 +13,12 @@ import json
 
 import pytest
 
-from tests.conftest import run_cmd
+from tests.conftest import run_cmd, xfail_if_mesh_unavailable
 from tests.process_utils import free_tcp_port, start_process, transport_env, wait_for_port_or_process
-
-MESH_UNAVAILABLE_XFAIL = (
-    "urirun host/node mesh layer is unavailable after a fresh install: "
-    "urirun-contract / urirun-connector-router / urirun-flow>=0.2.2 are not "
-    "published, so the harness --no-deps fallback leaves urirun_flow missing."
-)
-
 
 def _mesh_or_xfail(cp) -> str:
     output = cp.stdout + cp.stderr
-    if "mesh not available" in output:
-        pytest.xfail(MESH_UNAVAILABLE_XFAIL)
+    xfail_if_mesh_unavailable(output)
     return output
 
 

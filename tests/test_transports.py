@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.conftest import command_path, run_cmd, urirun_version
+from tests.conftest import command_path, run_cmd, urirun_version, xfail_if_mesh_unavailable
 from tests.process_utils import free_tcp_port, run_client, start_process, transport_env, wait_for_port_or_process, write_transport_report
 
 
@@ -42,7 +42,11 @@ def test_http_node_transport_run_roundtrip(registry_path, tmp_path):
     server = start_process("transport-http-node", server_command)
     client_result = None
     try:
-        wait_for_port_or_process(host, port, server, timeout=60)
+        try:
+            wait_for_port_or_process(host, port, server, timeout=60)
+        except RuntimeError as exc:
+            xfail_if_mesh_unavailable(str(exc))
+            raise
         health = urllib.request.urlopen(f"http://{host}:{port}/health", timeout=5)
         assert health.status == 200
         body = json.dumps({
