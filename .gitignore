@@ -7,3 +7,4 @@ __pycache__/
 .venv/
 reports/*
 !reports/.gitkeep
+.code2llm_cache
